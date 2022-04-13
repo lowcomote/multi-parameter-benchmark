@@ -1,0 +1,9 @@
+{
+  "benchmark_config": {
+    "measurement_rounds": 1,
+    "warmup_rounds": 42
+  },
+  "cluster_config": {
+    "dummy_param": "hello"
+  }
+}

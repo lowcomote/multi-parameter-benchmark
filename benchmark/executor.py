@@ -1,3 +1,7 @@
+import argparse
+from pathlib import Path
+from config import Configuration
+
 """
 INPUT:
   - parameters JSON
@@ -21,3 +25,20 @@ ALGORITHM:
 7. Do it until Sweeper finishes or we did enough experiment runs.
 8. Return the best configuration, the corresponding metrics values AND the whole metrics results: <config - summarized metrics>
 """
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--parameters", help="Application parameters JSON path", required=True)
+    parser.add_argument("-a", "--application", help="Application JAR path", required=True)
+    parser.add_argument("-c", "--benchmark_config", help="Benchmark config JSON path", required=True)
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    arguments = parse_arguments()
+    config_path = arguments.benchmark_config
+    config_text = Path(config_path).read_text()
+    config = Configuration.Schema().loads(config_text)
+    print(config)
+    print(config.benchmark_config.warmup_rounds)
