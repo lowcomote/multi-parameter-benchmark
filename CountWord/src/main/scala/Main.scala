@@ -44,13 +44,13 @@ object Main {
     SparkContext.getOrCreate(conf)
   }
 
-  val mb: Int = 1024*1024
+  val mb: Int = 1024 * 1024
   val runtime: Runtime = Runtime.getRuntime
 
   def nFile(filename: String, n: Int, spark: SparkContext, p: Int): RDD[String] = {
     var res = spark.textFile(filename, p)
-    val ite = Math.min(1, n/p)
-    for (_ <- 1 until ite){
+    val ite = Math.min(1, n / p)
+    for (_ <- 1 until ite) {
       res = res.union(spark.textFile(filename, p))
     }
     res
@@ -62,7 +62,7 @@ object Main {
     val t0 = System.nanoTime()
     val m0 = (runtime.totalMemory - runtime.freeMemory) / mb
     val file: RDD[String] = nFile(filename, replicate, spark, partition)
-    val res = file.flatMap(line => line.split(" ")).map(word => (word.replaceAll("[-+.^:,;)(_]",""), 1)).reduceByKey(_ + _).sortBy(e => e._2, ascending = false).collect()
+    val res = file.flatMap(line => line.split(" ")).map(word => (word.replaceAll("[-+.^:,;)(_]", ""), 1)).reduceByKey(_ + _).sortBy(e => e._2, ascending = false).collect()
     val t1 = System.nanoTime()
     val m1 = (runtime.totalMemory - runtime.freeMemory) / mb
     println("Used memory = " + (m1 - m0) + " mb")
