@@ -42,3 +42,50 @@ if __name__ == "__main__":
     config = Configuration.Schema().loads(config_text)
     print(config)
     print(config.benchmark_config.warmup_rounds)
+
+    '''
+    1. Parsing arguments.parameters
+    Example parameters.json
+    [
+        {
+            "name": "c1",
+            "priority": 1,
+            "values": ["p1", "p2", "p3"],
+            "constraints": [
+            {
+               "source": "c1.p1",
+               "target": "c2.p4",
+               "type": "must/forbidden"  
+            }
+            ]
+        }
+    ]
+    Parse it as an array and pass it on to the Sweeper that will build the parameter-combinations from it.
+    
+    2. Sweeper.get_next() returns a HashtableDict that we have to transform to a string that will be passed on 
+    to the application (--> application-specific serialization?)
+    
+    3. We submit the application to the spark cluster with these parameters...
+        SparkG5kConf:
+            - setting JAVA_HOME is optional
+            - setting SPARK_HOME is mandatory
+            - path to the application JAR is mandatory
+            - application class is mandatory
+        We could refactor SparkG5kConf and extract the Spark-submit functions so that they can be used for local clusters as well.
+    
+    4. When the application finishes, we collect the logs and the CSVs with the metrics
+        Where to look for the CSVs?
+            - download from g5k..
+        What is the structure of the CSV?
+            - header: configuration, metric
+            - example: 
+                "param1=v1,param2=v2 ... paramn=vn", "46546545"
+                "param1=v1,param2=v2 ... paramn=vn", "465461235"
+                "param1=v1,param2=v2 ... paramn=vn", "46546541445"
+                "param1=v1,param2=v2 ... paramn=vn", "465465445"
+            
+            - header: metric
+            - example:
+    '''
+
+
