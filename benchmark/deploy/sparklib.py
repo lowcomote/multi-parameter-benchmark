@@ -179,9 +179,9 @@ class SparkG5kConf:
             classname:
                 Main class to execute in path_jar.
             spark_args:
-                A dictionnary of Spark argument.
+                A dictionary of Spark argument.
             java_args:
-                A dictionnary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
+                A dictionary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
             path_log:
                 Path to the file the standard output will be printed in.
             path_err:
