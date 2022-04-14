@@ -77,15 +77,22 @@ if __name__ == "__main__":
         Where to look for the CSVs?
             - download from g5k..
         What is the structure of the CSV?
-            - header: configuration, metric
+            - header: configuration, metric_name, metric_value
             - example: 
-                "param1=v1,param2=v2 ... paramn=vn", "46546545"
-                "param1=v1,param2=v2 ... paramn=vn", "465461235"
-                "param1=v1,param2=v2 ... paramn=vn", "46546541445"
-                "param1=v1,param2=v2 ... paramn=vn", "465465445"
+                "param1=v1,param2=v2 ... paramn=vn", "[cpu(op),memory(GB),time(ms)]", "[r1, r2, r3]"
+                ...
             
             - header: metric
             - example:
+
+        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[16732, 2162, 399]"
+        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[111232, 2162, 399]"
+        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[1132612, 2162, 399]"
+        We run the measurments n times, we release the csv, and calculate the avg for this specific configuration
+
+        Future discussion: fault tolerance 
+    
+    6. Anaylse the .csv with R, or external analysis tool
     '''
 
 
