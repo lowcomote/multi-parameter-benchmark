@@ -78,7 +78,7 @@ class SparkG5kConf:
         self.__username = get_api_username()
         self.__jobname = jobname
 
-    def setJavaPath(self, path: str):
+    def set_java_path(self, path: str):
         """ set JAVA_HOME. By default, SparkG5kConf submission mechanism will use installed java version.
         """
         self.__java = path
@@ -86,7 +86,7 @@ class SparkG5kConf:
             self.__java = self.__java + "/"
         self.__isSetJava = True
 
-    def setSparkPath(self, path: str):
+    def set_spark_path(self, path: str):
         """ set SPARK_HOME. Mandatory to submit Spark application.
         """
         self.__spark = path
@@ -97,7 +97,7 @@ class SparkG5kConf:
     def start(self):
         """ Make a G5k on reservation, according to the fields of the current configuration.
         """
-        if self.__isSetSpark == False:
+        if not self.__isSetSpark:
             raise Exception("The path to SPARK_HOME must be defined. Please, use sparkConf.setSparkPath(path).")
 
         my_network = G5kNetworkConf(id="n1", type="prod", roles=["my_network"], site=self.__site)
@@ -135,23 +135,26 @@ class SparkG5kConf:
 
         # Start Spark Cluster
         self.__master = self.__roles[_ROLE_MASTER][0].address  # get master address
-        shellSetJava = ("JAVA_HOME=" + self.__java + " ") if self.__isSetJava else ""
+        shell_set_java = self.get_shell_set_java_cmd()
         with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-            p.shell(shellSetJava + self.__spark + "sbin/start-master.sh -p 7077")
+            cmd = "{0}{1}sbin/start-master.sh -p 7077".format(shell_set_java, self.__spark)
+            p.shell(cmd)
         with play_on(pattern_hosts=_ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
-            p.shell(shellSetJava + self.__spark + "sbin/start-worker.sh spark://" + self.__master + ":7077")
+            cmd = "{0}{1}sbin/start-worker.sh spark://{2}:7077".format(shell_set_java, self.__spark, self.__master)
+            p.shell(cmd)
 
     def stop(self):
         """ Stop current Spark cluster and cancel g5k reservation.
         """
-        shellSetJava = ("JAVA_HOME=" + self.__java + " ") if self.__isSetJava else ""
+        shell_set_java = self.get_shell_set_java_cmd()
+        cmd = "{0}{1}sbin/stop-all.sh".format(shell_set_java, self.__spark)
         with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-            p.shell(shellSetJava + self.__spark + "sbin/stop-all.sh")
+            p.shell(cmd)
         with play_on(pattern_hosts=_ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
-            p.shell(shellSetJava + self.__spark + "sbin/stop-all.sh")
+            p.shell(cmd)
         self.__provider.destroy()
 
-    def testWithLog(self, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
+    def test_with_log(self, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """ Run a simple test on the cluster using files as output.
         
         Args:
@@ -160,17 +163,18 @@ class SparkG5kConf:
             path_err:
                 Path to the file the error output will be printed in.
         """
-        stream = os.popen('ls ' + self.__spark + "examples/jars/*examples*jar")
+        cmd = "ls {0}examples/jars/*examples*jar".format(self.__spark)
+        stream = os.popen(cmd)
         jar_path = stream.read()
         stream.close()
-        self.submitWithLog(jar_path.rstrip("\n"), "org.apache.spark.examples.SparkPi", java_args={"": "10"})
+        self.submit_with_log(jar_path.rstrip("\n"), "org.apache.spark.examples.SparkPi", java_args={"": "10"})
 
     def test(self):
         """ Run a simple test on the cluster. """
-        self.testWithLog(_NO_PATHLOG, _NO_PATHERR)
+        self.test_with_log(_NO_PATHLOG, _NO_PATHERR)
 
-    def submitWithLog(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {},
-                      path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
+    def submit_with_log(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {},
+                        path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """ Submit a Spark job on the cluster using files as output.
         
         Args:
@@ -201,20 +205,25 @@ class SparkG5kConf:
             value = java_args.get(arg)
             str_java_args = str_java_args + arg + " " + value + " "
         # Run spark-submit
-        shellSetJava = ("JAVA_HOME=" + self.__java + " ") if self.__isSetJava else ""
-        shellOutLog = (" >> " + path_log) if path_log != _NO_PATHLOG else ""
-        shellOutErr = (" 2>> " + path_err) if path_log != _NO_PATHERR else ""
+        shell_set_java = self.get_shell_set_java_cmd()
+        shell_out_log = (">> {0}".format(path_log)) if path_log != _NO_PATHLOG else ""
+        shell_out_err = ("2>> {0}".format(path_err)) if path_log != _NO_PATHERR else ""
         with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             try:
-                cmd = shellSetJava + self.__spark + "bin/spark-submit --master spark://" + self.__master + ":7077 " + str_spark_args + " --class " + classname + " " + path_jar + " " + str_java_args + shellOutLog + shellOutErr
+                cmd = "{0}{1}bin/spark-submit --master spark://{2}:7077 {3} --class {4} {5} {6} {7} {8}".format(
+                    shell_set_java, self.__spark, self.__master, str_spark_args, classname, path_jar, str_java_args,
+                    shell_out_log, shell_out_err)
                 p.shell(cmd)
                 p.fetch(src=path_log, dest="~")
                 p.fetch(src=path_err, dest="~")
-                os.system("rm -rf " + self.__spark + "work")
+                os.system("rm -rf {0}work".format(self.__spark))
             except Exception as e:
                 print(e)
                 p.fetch(src=path_log, dest="~")
                 p.fetch(src=path_err, dest="~")
+
+    def get_shell_set_java_cmd(self):
+        return ("JAVA_HOME={0} ".format(self.__java)) if self.__isSetJava else ""
 
     def submit(self, pathJar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {}):
         """ Submit a Spark job on the cluster.
@@ -229,4 +238,4 @@ class SparkG5kConf:
             java_args:
                 A dictionnary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
         """
-        self.submitWithLog(pathJar, classname, spark_args, java_args, _NO_PATHLOG, _NO_PATHERR)
+        self.submit_with_log(pathJar, classname, spark_args, java_args, _NO_PATHLOG, _NO_PATHERR)
