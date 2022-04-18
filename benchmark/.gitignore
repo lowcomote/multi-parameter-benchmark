@@ -222,4 +222,5 @@ cython_debug/
 # Local History for Visual Studio Code
 .history/
 
-
+# Sweeper's working directory
+sweeper_workdir/

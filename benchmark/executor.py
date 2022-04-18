@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
-from config import Configuration, ApplicationParameters
+from data.config import Configuration, ApplicationParameters
+from deploy.sweep import Sweeper
+from deploy.utils import DefaultConfigSerializer
 
 """
 INPUT:
@@ -44,13 +46,6 @@ if __name__ == "__main__":
     config = Configuration.Schema().loads(config_text)
     print(config)
 
-    # load application parameters
-    parameters_path = arguments.parameters
-    parameters_text = Path(parameters_path).read_text()
-    parameters = ApplicationParameters.Schema().loads(parameters_text)
-    print(parameters)
-
-
     '''
     1. [done] Parsing arguments.parameters
     Example parameters.json
@@ -67,10 +62,24 @@ if __name__ == "__main__":
         }]
     }
     Parse it as an array and pass it on to the Sweeper that will build the parameter-combinations from it.
-    
-    2. Sweeper.get_next() returns a HashtableDict that we have to transform to a string that will be passed on 
+    '''
+    # load application parameters
+    parameters_path = arguments.parameters
+    parameters_text = Path(parameters_path).read_text()
+    parameters = ApplicationParameters.Schema().loads(parameters_text)
+    print(parameters)
+
+    '''
+    2. [done] Sweeper.get_next() returns a HashableDict that we have to transform to a string that will be passed on 
     to the application (--> application-specific serialization?)
-    
+    '''
+    # setup sweeper
+    sweeper = Sweeper(parameters.parameters, remove_workdir=True)
+    application_configuration = sweeper.get_next()
+    cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
+    print(cli_arguments)
+
+    '''    
     3. We submit the application to the spark cluster with these parameters...
         SparkG5kConf:
             - setting JAVA_HOME is optional
