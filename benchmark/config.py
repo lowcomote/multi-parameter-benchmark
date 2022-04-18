@@ -1,4 +1,6 @@
 from marshmallow_dataclass import dataclass
+from typing import List
+from enum import Enum
 
 
 @dataclass
@@ -20,3 +22,28 @@ class ClusterConfig:
 class Configuration:
     cluster_config: ClusterConfig
     benchmark_config: BenchmarkConfig
+
+
+class ConstraintType(Enum):
+    MUST = 1
+    FORBIDDEN = 2
+
+
+@dataclass
+class ApplicationParameterConstraint:
+    source: str
+    target: str
+    type: ConstraintType
+
+
+@dataclass
+class ApplicationParameter:
+    name: str
+    priority: int
+    values: List[str]
+    constraints: List[ApplicationParameterConstraint]
+
+
+@dataclass
+class ApplicationParameters:
+    parameters: List[ApplicationParameter]

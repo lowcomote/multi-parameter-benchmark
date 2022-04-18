@@ -1,0 +1,35 @@
+{
+  "parameters": [
+    {
+      "name": "c1",
+      "priority": 1,
+      "values": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "constraints": [
+        {
+          "source": "c1.p1",
+          "target": "c2.p4",
+          "type": "MUST"
+        }
+      ]
+    },
+    {
+      "name": "c2",
+      "priority": 2,
+      "values": [
+        "p4",
+        "p5"
+      ],
+      "constraints": [
+        {
+          "source": "c2.p5",
+          "target": "c1.p2",
+          "type": "FORBIDDEN"
+        }
+      ]
+    }
+  ]
+}

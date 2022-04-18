@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from config import Configuration
+from config import Configuration, ApplicationParameters
 
 """
 INPUT:
@@ -37,29 +37,35 @@ def parse_arguments():
 
 if __name__ == "__main__":
     arguments = parse_arguments()
+
+    # load benchmark config
     config_path = arguments.benchmark_config
     config_text = Path(config_path).read_text()
     config = Configuration.Schema().loads(config_text)
     print(config)
-    print(config.benchmark_config.warmup_rounds)
+
+    # load application parameters
+    parameters_path = arguments.parameters
+    parameters_text = Path(parameters_path).read_text()
+    parameters = ApplicationParameters.Schema().loads(parameters_text)
+    print(parameters)
+
 
     '''
-    1. Parsing arguments.parameters
+    1. [done] Parsing arguments.parameters
     Example parameters.json
-    [
-        {
+    {
+        "parameters":[{
             "name": "c1",
             "priority": 1,
             "values": ["p1", "p2", "p3"],
-            "constraints": [
-            {
+            "constraints": [{
                "source": "c1.p1",
                "target": "c2.p4",
                "type": "must/forbidden"  
-            }
-            ]
-        }
-    ]
+            }]
+        }]
+    }
     Parse it as an array and pass it on to the Sweeper that will build the parameter-combinations from it.
     
     2. Sweeper.get_next() returns a HashtableDict that we have to transform to a string that will be passed on 
