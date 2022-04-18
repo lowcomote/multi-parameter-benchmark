@@ -12,16 +12,6 @@ import os
 
 __all__ = ['SparkG5kConf']
 
-_DEFAULT_TIME = "02:00:00"
-_DEFAULT_START = "now"
-_DEFAULT_JOB_NAME = "Spark_with_" + get_api_username()
-
-_ROLE_MASTER = "master"
-_ROLE_WORKER = "worker"
-
-_NO_PATHLOG = "-1"
-_NO_PATHERR = "-1"
-
 
 class SparkG5kConf:
     """
@@ -56,11 +46,21 @@ class SparkG5kConf:
                 myspark.stop()
     """
 
+    _DEFAULT_TIME = "02:00:00"
+    _DEFAULT_START = "now"
+    _DEFAULT_JOB_NAME = "Spark_with_" + get_api_username()
+
+    _ROLE_MASTER = "master"
+    _ROLE_WORKER = "worker"
+
+    _NO_PATHLOG = "-1"
+    _NO_PATHERR = "-1"
+
     # Java and Spark versions related fields
     __isSetJava: bool = False
     __isSetSpark: bool = False
     __java = None  # Path to JAVA_HOME
-    __java_home_backup = None # Original value of the JAVA_HOME environmental variable
+    __java_home_backup = None  # Original value of the JAVA_HOME environmental variable
     __spark = None  # Path to SPARK_HOME
     __master = None  # Address of master on the current cluster
 
@@ -122,15 +122,16 @@ class SparkG5kConf:
 
         # Setup g5k conf
         conf = None
-        if self.__start_time == _DEFAULT_START:
+        if self.__start_time == SparkG5kConf._DEFAULT_START:
             conf = (
                 G5kConf.from_settings(job_type="allow_classic_ssh", job_name=self.__jobname, walltime=self.__time)
                     .add_network_conf(my_network)
                     .add_machine(
-                    roles=[_ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[SparkG5kConf._ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .add_machine(
-                    roles=[_ROLE_WORKER], cluster=self.__cluster, nodes=self.__worker, primary_network=my_network
+                    roles=[SparkG5kConf._ROLE_WORKER], cluster=self.__cluster, nodes=self.__worker,
+                    primary_network=my_network
                 )
                     .finalize()
             )
@@ -140,10 +141,10 @@ class SparkG5kConf:
                                       reservation=self.__start_time)
                     .add_network_conf(my_network)
                     .add_machine(
-                    roles=[_ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[SparkG5kConf._ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .add_machine(
-                    roles=[_ROLE_WORKER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[SparkG5kConf._ROLE_WORKER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .finalize()
             )
@@ -152,13 +153,13 @@ class SparkG5kConf:
         self.__roles, self.__networks = self.__provider.init()
 
         # Start Spark Cluster
-        self.__master = self.__roles[_ROLE_MASTER][0].address  # get master address
+        self.__master = self.__roles[SparkG5kConf._ROLE_MASTER][0].address  # get master address
         try:
             self.set_java_home()
-            with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            with play_on(pattern_hosts=SparkG5kConf._ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
                 cmd = "{0}sbin/start-master.sh -p 7077".format(self.__spark)
                 p.shell(cmd)
-            with play_on(pattern_hosts=_ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+            with play_on(pattern_hosts=SparkG5kConf._ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
                 cmd = "{0}sbin/start-worker.sh spark://{1}:7077".format(self.__spark, self.__master)
                 p.shell(cmd)
         finally:
@@ -170,9 +171,9 @@ class SparkG5kConf:
         try:
             self.set_java_home()
             cmd = "{0}sbin/stop-all.sh".format(self.__spark)
-            with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            with play_on(pattern_hosts=SparkG5kConf._ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
                 p.shell(cmd)
-            with play_on(pattern_hosts=_ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+            with play_on(pattern_hosts=SparkG5kConf._ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
                 p.shell(cmd)
             self.__provider.destroy()
         finally:
@@ -195,7 +196,7 @@ class SparkG5kConf:
 
     def test(self):
         """ Run a simple test on the cluster. """
-        self.test_with_log(_NO_PATHLOG, _NO_PATHERR)
+        self.test_with_log(SparkG5kConf._NO_PATHLOG, SparkG5kConf._NO_PATHERR)
 
     def submit_with_log(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {},
                         path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -231,9 +232,9 @@ class SparkG5kConf:
         # Run spark-submit
         try:
             self.set_java_home()
-            shell_out_log = (">> {0}".format(path_log)) if path_log != _NO_PATHLOG else ""
-            shell_out_err = ("2>> {0}".format(path_err)) if path_log != _NO_PATHERR else ""
-            with play_on(pattern_hosts=_ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            shell_out_log = (">> {0}".format(path_log)) if path_log != SparkG5kConf._NO_PATHLOG else ""
+            shell_out_err = ("2>> {0}".format(path_err)) if path_log != SparkG5kConf._NO_PATHERR else ""
+            with play_on(pattern_hosts=SparkG5kConf._ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
                 try:
                     cmd = "{0}bin/spark-submit --master spark://{1}:7077 {2} --class {3} {4} {5} {6} {7}".format(
                         self.__spark, self.__master, str_spark_args, classname, path_jar, str_java_args,
@@ -262,4 +263,5 @@ class SparkG5kConf:
             java_args:
                 A dictionnary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
         """
-        self.submit_with_log(pathJar, classname, spark_args, java_args, _NO_PATHLOG, _NO_PATHERR)
+        self.submit_with_log(pathJar, classname, spark_args, java_args, SparkG5kConf._NO_PATHLOG,
+                             SparkG5kConf._NO_PATHERR)
