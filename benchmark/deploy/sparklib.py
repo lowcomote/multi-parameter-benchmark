@@ -3,8 +3,8 @@ A module for quickly configuring a Spark standalone cluster on Grid5000 and subm
 
 class: SparkG5kConf: the Spark configuration for G5k
 class: SparkSubmit: the abstract parent of the infrastructure-specific Spark Submit classes
-class LocalSparkSubmit: the Spark Submit class that deploys on localhost
-class G5kSparkSubmit: the Spark Submit class that deploys on G5k
+class: LocalSparkSubmit: the Spark Submit class that deploys on localhost
+class: G5kSparkSubmit: the Spark Submit class that deploys on G5k
 """
 import subprocess
 
