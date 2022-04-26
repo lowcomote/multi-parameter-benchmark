@@ -95,7 +95,7 @@ class Sweeper:
         for sequence in sequences:
             if ''.join(sequence).startswith(''.join(start)): 
                 result.append(sequence)
-        sequence
+        return result
 
     def get_next(self):
         if self.__remaining_train == 0: 
