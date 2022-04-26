@@ -1,7 +1,10 @@
 """
-A module for quickly configuring a Spark standalone cluster on Grid5000
+A module for quickly configuring a Spark standalone cluster on Grid5000 and submitting Spark applications on a Spark cluster.
 
 class: SparkG5kConf: the Spark configuration for G5k
+class: SparkSubmit: the abstract parent of the infrastructure-specific Spark Submit classes
+class LocalSparkSubmit: the Spark Submit class that deploys on localhost
+class G5kSparkSubmit: the Spark Submit class that deploys on G5k
 """
 import subprocess
 
@@ -13,12 +16,12 @@ from typing import Dict
 
 import os
 
-__all__ = ['SparkG5kConf', 'SparkSubmit']
+__all__ = ['SparkG5kConf', 'LocalSparkSubmit', 'G5kSparkSubmit']
 
 
 class SparkG5kConf:
     """
-    SparkG5kConf to run Spark application on G5k
+    SparkG5kConf to reserve a cluster on G5k.
 
     Methods:
         start, stop
@@ -34,7 +37,6 @@ class SparkG5kConf:
             g5kconf = SparkG5kConf(site="nancy", cluster="gros", worker=1, jobname="Spark_test", time="00:10:00", start="now")
             try:
                 g5kconf.start()
-                master = g5kconf.master
                 username = g5kconf.username
                 roles = g5kconf.roles
             except Exception as e:
@@ -45,7 +47,7 @@ class SparkG5kConf:
 
     _DEFAULT_TIME = "02:00:00"
     _DEFAULT_START = "now"
-    _DEFAULT_JOB_NAME = "Spark_with_" + get_api_username()
+    _DEFAULT_JOB_NAME = "Spark_with_{0}".format(get_api_username())
 
     ROLE_MASTER = "master"
     ROLE_WORKER = "worker"
@@ -104,9 +106,6 @@ class SparkG5kConf:
         self.__provider = G5k(conf)
         self.__roles, self.__networks = self.__provider.init()
 
-        # Start Spark Cluster
-        self.__master = self.__roles[SparkG5kConf.ROLE_MASTER][0].address  # get master address
-
     def stop(self):
         """
         Cancel the G5K reservation.
@@ -116,10 +115,6 @@ class SparkG5kConf:
     @property
     def roles(self):
         return self.__roles
-
-    @property
-    def master(self):
-        return self.__master
 
     @property
     def username(self):
@@ -134,7 +129,6 @@ class SparkSubmit(ABC):
     __isSetJava: bool = False
     __isSetSpark: bool = False
     __java = None  # Path to JAVA_HOME
-    __java_home_backup = None  # Original value of the JAVA_HOME environmental variable
     __spark = None  # Path to SPARK_HOME
 
     def set_spark_path(self, path: str):
@@ -143,7 +137,7 @@ class SparkSubmit(ABC):
         """
         self.__spark = path
         if self.__spark[-1] != "/":
-            self.__spark = self.__spark + "/"
+            self.__spark = "{0}/".format(self.__spark)
         self.__isSetSpark = True
 
     def set_java_path(self, path: str):
@@ -152,25 +146,8 @@ class SparkSubmit(ABC):
         """
         self.__java = path
         if self.__java[-1] != "/":
-            self.__java = self.__java + "/"
+            self.__java = "{0}/".format(self.__java)
         self.__isSetJava = True
-
-    def set_java_home(self):
-        if not self.__isSetJava:
-            return
-        self.__java_home_backup = os.getenv("JAVA_HOME")
-        os.environ["JAVA_HOME"] = self.__java
-
-    def restore_java_home(self):
-        if not self.__isSetJava:
-            return
-        if self.__java_home_backup is not None:
-            # restore JAVA_HOME to its original value
-            os.environ["JAVA_HOME"] = self.__java_home_backup
-            self.__java_home_backup = None
-        else:
-            # delete JAVA_HOME as it was not set originally
-            os.environ.pop("JAVA_HOME")
 
     def start(self):
         """
@@ -185,6 +162,9 @@ class SparkSubmit(ABC):
         """
         Stop current Spark cluster.
         """
+        if not self.__isSetSpark:
+            raise Exception("The path to SPARK_HOME must be defined. Please, use set_spark_path(path).")
+
         self._on_stop()
 
     def test_with_log(self, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -302,36 +282,51 @@ class LocalSparkSubmit(SparkSubmit):
                 spark_submit.stop()
     """
 
+    __java_home_backup = None  # Original value of the JAVA_HOME environmental variable
+
     def __init__(self, number_of_cores=1):
         self.__number_of_cores = number_of_cores
+
+    def _set_java_home(self):
+        if not self.__isSetJava:
+            return
+        self.__java_home_backup = os.getenv("JAVA_HOME")
+        os.environ["JAVA_HOME"] = self.__java
+
+    def _restore_java_home(self):
+        if not self.__isSetJava:
+            return
+        if self.__java_home_backup is not None:
+            # restore JAVA_HOME to its original value
+            os.environ["JAVA_HOME"] = self.__java_home_backup
+            self.__java_home_backup = None
+        else:
+            # delete JAVA_HOME as it was not set originally
+            os.environ.pop("JAVA_HOME")
 
     def _on_start(self):
         """
         Start current spark cluster.
         """
-        if not self.__isSetSpark:
-            raise Exception("The path to SPARK_HOME must be defined. Please, use sparkSubmit.set_spark_path(path).")
-
-        # Start Spark Cluster
         try:
-            self.set_java_home()
+            self._set_java_home()
             cmd = "{0}sbin/start-master.sh -p 7077".format(self.__spark)
             subprocess.run(cmd, shell=True, capture_output=True, check=True)
             cmd = "{0}sbin/start-worker.sh spark://localhost:7077".format(self.__spark)
             subprocess.run(cmd, shell=True, capture_output=True, check=True)
         finally:
-            self.restore_java_home()
+            self._restore_java_home()
 
     def _on_stop(self):
         """
         Stop current Spark cluster.
         """
         try:
-            self.set_java_home()
+            self._set_java_home()
             cmd = "{0}sbin/stop-all.sh".format(self.__spark)
             subprocess.run(cmd, shell=True, capture_output=True, check=True)
         finally:
-            self.restore_java_home()
+            self._restore_java_home()
 
     def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_log: str = "/tmp/out.log",
                    path_err: str = "/tmp/out.err"):
@@ -353,7 +348,7 @@ class LocalSparkSubmit(SparkSubmit):
                Path to the file the error output will be printed in.
        """
         try:
-            self.set_java_home()
+            self._set_java_home()
             shell_out_log = (">> {0}".format(path_log)) if path_log != SparkSubmit._NO_PATHLOG else ""
             shell_out_err = ("2>> {0}".format(path_err)) if path_log != SparkSubmit._NO_PATHERR else ""
             cmd = "{0}bin/spark-submit --master spark://local[{1}] {2} --class {3} {4} {5} {6} {7}".format(
@@ -367,7 +362,7 @@ class LocalSparkSubmit(SparkSubmit):
             subprocess.run(cmd)
             cmd = "mv {0} {1}".format(path_err, "~")
             subprocess.run(cmd)
-            self.restore_java_home()
+            self._restore_java_home()
 
 
 class G5kSparkSubmit(SparkSubmit):
@@ -405,44 +400,29 @@ class G5kSparkSubmit(SparkSubmit):
     def __init__(self, username, roles):
         self.__username = username
         self.__roles = roles
+        self.__master = self.__roles[SparkG5kConf.ROLE_MASTER][0].address  # get master address
 
     def _on_start(self):
         """
         Deploy the Spark cluster.
         """
-        if not self.__isSetSpark:
-            raise Exception("The path to SPARK_HOME must be defined. Please, use sparkSubmit.set_spark_path(path).")
-
-        # Start Spark Cluster
-        self.__master = self.__roles[SparkG5kConf.ROLE_MASTER][0].address  # get master address
-        try:
-            # TODO this will not work correctly, because set_java_home() must be run on the remote machine!!!
-            self.set_java_home()
-            with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-                cmd = "{0}sbin/start-master.sh -p 7077".format(self.__spark)
-                p.shell(cmd)
-            with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
-                cmd = "{0}sbin/start-worker.sh spark://{1}:7077".format(self.__spark, self.__master)
-                p.shell(cmd)
-        finally:
-            # TODO this will not work correctly, because restore_java_home() must be run on the remote machine!!!
-            self.restore_java_home()
+        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            cmd = "{0}{1}sbin/start-master.sh -p 7077".format(self._shell_set_java_cmd, self.__spark)
+            p.shell(cmd)
+        with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+            cmd = "{0}{1}sbin/start-worker.sh spark://{2}:7077".format(self._shell_set_java_cmd, self.__spark,
+                                                                       self.__master)
+            p.shell(cmd)
 
     def _on_stop(self):
         """
         Stop current Spark cluster.
         """
-        try:
-            # TODO this will not work correctly, because set_java_home() must be run on the remote machine!!!
-            self.set_java_home()
-            cmd = "{0}sbin/stop-all.sh".format(self.__spark)
-            with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-                p.shell(cmd)
-            with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
-                p.shell(cmd)
-        finally:
-            # TODO this will not work correctly, because restore_java_home() must be run on the remote machine!!!
-            self.restore_java_home()
+        cmd = "{0}{1}sbin/stop-all.sh".format(self._shell_set_java_cmd, self.__spark)
+        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            p.shell(cmd)
+        with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+            p.shell(cmd)
 
     def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str,
                    path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -463,26 +443,21 @@ class G5kSparkSubmit(SparkSubmit):
             path_err:
                 Path to the file the error output will be printed in.
         """
+        shell_out_log = (">> {0}".format(path_log)) if path_log != SparkSubmit._NO_PATHLOG else ""
+        shell_out_err = ("2>> {0}".format(path_err)) if path_log != SparkSubmit._NO_PATHERR else ""
+        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            try:
+                cmd = "{0}{1}bin/spark-submit --master spark://{2}:7077 {3} --class {4} {5} {6} {7} {8}".format(
+                    self._shell_set_java_cmd, self.__spark, self.__master, spark_args, classname, path_jar,
+                    java_args, shell_out_log, shell_out_err)
+                p.shell(cmd)
+                os.system("rm -rf {0}work".format(self.__spark))
+            except Exception as e:
+                print(e)
+            finally:
+                p.fetch(src=path_log, dest="~")
+                p.fetch(src=path_err, dest="~")
 
-        # Run spark-submit
-        try:
-            # TODO this will not work correctly, because set_java_home() must be run on the remote machine!!!
-            self.set_java_home()
-            shell_out_log = (">> {0}".format(path_log)) if path_log != SparkSubmit._NO_PATHLOG else ""
-            shell_out_err = ("2>> {0}".format(path_err)) if path_log != SparkSubmit._NO_PATHERR else ""
-            with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-                try:
-                    cmd = "{0}bin/spark-submit --master spark://{1}:7077 {2} --class {3} {4} {5} {6} {7}".format(
-                        self.__spark, self.__master, spark_args, classname, path_jar, java_args,
-                        shell_out_log, shell_out_err)
-                    p.shell(cmd)
-                    p.fetch(src=path_log, dest="~")
-                    p.fetch(src=path_err, dest="~")
-                    os.system("rm -rf {0}work".format(self.__spark))
-                except Exception as e:
-                    print(e)
-                    p.fetch(src=path_log, dest="~")
-                    p.fetch(src=path_err, dest="~")
-        finally:
-            # TODO this will not work correctly, because restore_java_home() must be run on the remote machine!!!
-            self.restore_java_home()
+    @property
+    def _shell_set_java_cmd(self):
+        return ("JAVA_HOME={0} ".format(self.__java)) if self.__isSetJava else ""
