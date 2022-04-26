@@ -68,6 +68,13 @@ class SparkG5kConf:
         self.__username = get_api_username()
         self.__jobname = jobname
 
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
     def start(self):
         """
         Make a G5k on reservation, according to the fields of the current configuration.
@@ -131,6 +138,13 @@ class SparkSubmit(ABC):
     __java = None  # Path to JAVA_HOME
     __spark = None  # Path to SPARK_HOME
 
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
     def set_spark_path(self, path: str):
         """
         Set SPARK_HOME. Mandatory to submit Spark application.
@@ -155,7 +169,6 @@ class SparkSubmit(ABC):
         """
         if not self.__isSetSpark:
             raise Exception("The path to SPARK_HOME must be defined. Please, use set_spark_path(path).")
-
         self._on_start()
 
     def stop(self):
@@ -164,7 +177,6 @@ class SparkSubmit(ABC):
         """
         if not self.__isSetSpark:
             raise Exception("The path to SPARK_HOME must be defined. Please, use set_spark_path(path).")
-
         self._on_stop()
 
     def test_with_log(self, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -218,7 +230,7 @@ class SparkSubmit(ABC):
         for arg in java_args.keys():
             value = java_args.get(arg)
             str_java_args = str_java_args + arg + " " + value + " "
-
+        # Submit the application on the cluster
         self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_log, path_err)
 
     def submit(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {}):
