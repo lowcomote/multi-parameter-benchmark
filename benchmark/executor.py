@@ -3,6 +3,7 @@ from pathlib import Path
 from data.config import Configuration, ApplicationParameters
 from deploy.sweep import Sweeper
 from deploy.utils import DefaultConfigSerializer
+from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit
 
 """
 INPUT:
@@ -44,7 +45,6 @@ if __name__ == "__main__":
     config_path = arguments.benchmark_config
     config_text = Path(config_path).read_text()
     config = Configuration.Schema().loads(config_text)
-    print(config)
 
     '''
     1. [done] Parsing arguments.parameters
@@ -67,7 +67,25 @@ if __name__ == "__main__":
     parameters_path = arguments.parameters
     parameters_text = Path(parameters_path).read_text()
     parameters = ApplicationParameters.Schema().loads(parameters_text)
-    print(parameters)
+
+    '''
+    3. [done] We submit the application to the spark cluster with these parameters...
+    SparkG5kConf:
+        - setting JAVA_HOME is optional
+        - setting SPARK_HOME is mandatory
+        - path to the application JAR is mandatory
+        - application class is mandatory
+    We could refactor SparkG5kConf and extract the Spark-submit functions so that they can be used for local clusters as well.
+    '''
+    # Reserve cluster (optional step?)
+    cluster_reserver : ClusterReserver = NoopClusterReserver()
+    cluster_reserver.start()
+
+    # Start the spark cluster
+    # TODO should you deploy to G5k, then copy Spark and the application to your HOME folder, because G5k will upload it to the cluster
+    spark_submit : SparkSubmit = LocalSparkSubmit()
+    spark_submit.set_spark_path(config.spark_config.spark_home)
+    spark_submit.start()
 
     '''
     2. [done] Sweeper.get_next() returns a HashableDict that we have to transform to a string that will be passed on 
@@ -77,17 +95,23 @@ if __name__ == "__main__":
     sweeper = Sweeper(parameters.parameters, remove_workdir=True)
     application_configuration = sweeper.get_next()
     cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
-    print(cli_arguments)
+
+    # In each loop iteration:
+    # 1. get the next arguments from param_sweeper
+    # 2. submit the application to the cluster with these parameters
+    # 3. wait for the application to finish
+    # 4. collect the CSVs from the cluster
+    # 5. get metrics from the CSVs (see below)
+    # 6. save the metrics + the parametrization in the ParamSweeper
+    # 7. goto step 1, until ParamSweeper gives next param
+    # 8. if ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
+    # 9. export these results to a file (CSV?)
+
+    # Undeploy (TODO even if an error occurred!)
+    spark_submit.stop()
+    cluster_reserver.stop()
 
     '''    
-    3. We submit the application to the spark cluster with these parameters...
-        SparkG5kConf:
-            - setting JAVA_HOME is optional
-            - setting SPARK_HOME is mandatory
-            - path to the application JAR is mandatory
-            - application class is mandatory
-        We could refactor SparkG5kConf and extract the Spark-submit functions so that they can be used for local clusters as well.
-    
     4. When the application finishes, we collect the logs and the CSVs with the metrics
         Where to look for the CSVs?
             - download from g5k..
