@@ -19,8 +19,14 @@ class ClusterConfig:
 
 
 @dataclass
+class SparkConfig:
+    spark_home: str
+    java_home: str
+
+@dataclass
 class Configuration:
     cluster_config: ClusterConfig
+    spark_config: SparkConfig
     benchmark_config: BenchmarkConfig
 
 
