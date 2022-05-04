@@ -12,8 +12,6 @@ from enoslib import *
 from enoslib.infra.enos_g5k.g5k_api_utils import get_api_username
 from abc import ABC, abstractmethod
 
-from typing import Dict
-
 import os
 
 __all__ = ['SparkG5kConf', 'LocalSparkSubmit', 'G5kSparkSubmit']
@@ -217,7 +215,7 @@ class SparkSubmit(ABC):
         """ Run a simple test on the cluster. """
         self.test_with_log(SparkSubmit._NO_PATHLOG, SparkSubmit._NO_PATHERR)
 
-    def submit_with_log(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {},
+    def submit_with_log(self, path_jar: str, classname: str, spark_args=None, java_args=None,
                         path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """
         Submit a Spark job on the cluster using files as output.
@@ -237,6 +235,10 @@ class SparkSubmit(ABC):
                 Path to the file the error output will be printed in.
         """
         # Get Spark arguments as a single string value
+        if java_args is None:
+            java_args = {}
+        if spark_args is None:
+            spark_args = {}
         str_spark_args = ""
         for arg in spark_args.keys():
             str_arg = arg
@@ -252,7 +254,7 @@ class SparkSubmit(ABC):
         # Submit the application on the cluster
         self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_log, path_err)
 
-    def submit(self, path_jar: str, classname: str, spark_args: Dict = {}, java_args: Dict = {}):
+    def submit(self, path_jar: str, classname: str, spark_args=None, java_args=None):
         """ Submit a Spark job on the cluster.
 
         Args:
@@ -265,6 +267,10 @@ class SparkSubmit(ABC):
             java_args:
                 A dictionary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
         """
+        if java_args is None:
+            java_args = {}
+        if spark_args is None:
+            spark_args = {}
         self.submit_with_log(path_jar, classname, spark_args, java_args, SparkSubmit._NO_PATHLOG,
                              SparkSubmit._NO_PATHERR)
 
