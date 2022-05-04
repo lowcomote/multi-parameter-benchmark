@@ -18,8 +18,27 @@ import os
 
 __all__ = ['SparkG5kConf', 'LocalSparkSubmit', 'G5kSparkSubmit']
 
+class ClusterReserver(ABC):
 
-class SparkG5kConf:
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
+
+
+class NoopClusterReserver(ClusterReserver):
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
+
+class SparkG5kConf(ClusterReserver):
     """
     SparkG5kConf to reserve a cluster on G5k.
 
