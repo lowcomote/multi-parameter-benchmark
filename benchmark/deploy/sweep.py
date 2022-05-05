@@ -72,7 +72,7 @@ class Sweeper:
         best_config = None
         best_score = None
         for config in scores:
-            score = self.get_score[config]
+            score = self.get_score(config)
             if best_config is None:
                 best_config = config
                 best_score = score
@@ -100,7 +100,7 @@ class Sweeper:
     def get_next(self):
         if self.__remaining_train == 0: 
             best = self._find_best(self.__scores, self.__selected) # Find best sequence of argument, starting with already selected ones
-            self.__selected.append(best(self.__current_parameter_index)) # Add the a new config value to the selected ones
+            self.__selected.append(best(self.__current_parameter_index)) # Add the new config value to the selected ones
             self.__current_parameter_index = self.__current_parameter_index + 1 # Increase the index of the focused param
             self.__not_scored = self._all_start_with(self.__not_scored, self.__selected)
             self.__remaining_train = self.__train # Restart the maximal number of train
@@ -114,9 +114,10 @@ class Sweeper:
             return res
 
     def score(self, config, score) -> Metric:
-        if not config in self.__scores:
+        if config not in self.__scores:
             self.__scores[config] = list()
         self.__scores[config].append(score)
+        return score
 
     def get_score(self, config): 
         if config in self.__scores:
