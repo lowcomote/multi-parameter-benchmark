@@ -15,3 +15,8 @@ class DefaultConfigSerializer(ApplicationConfigSerializer):
     def serialize(self) -> str:
         cli_arguments = ["-{0} \"{1}\"".format(key, value) for key, value in self.config.items()]
         return " ".join(cli_arguments)
+
+class CsvConfigSerializer(ApplicationConfigSerializer):
+    def serialize(self) -> str:
+        cli_arguments = ["{0}={1}".format(key, value) for key, value in self.config.items()]
+        return ",".join(cli_arguments)

@@ -4,7 +4,7 @@ from data.config import Configuration, ApplicationParameters
 from sweeper.sweep import Sweeper
 from application.config_serializer import DefaultConfigSerializer
 from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit
-from application.csv_utils import CsvReader
+from application.csv_utils import CsvReader, CsvWriter
 
 """
 INPUT:
@@ -98,16 +98,17 @@ if __name__ == "__main__":
     application_configuration = sweeper.get_next()
     has_next = application_configuration is not None
 
+    metric_name = None # used in CSV Writer to print the metric name
     while has_next:
         # In each loop iteration:
         # 1. serialize the arguments received from the param sweeper
         cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
 
-        # 2. submit the application to the cluster with these parameters
+        # 2. TODO submit the application to the cluster with these parameters
         spark_submit.submit_with_log(...)
 
-        # 3. wait for the application to finish
-
+        # 3. TODO wait for the application to finish
+        spark_submit.is_finished(...)
 
         # If the application throws an exception, then mark the config as erroneous
         # how to check if the app threw an exception?
@@ -141,6 +142,7 @@ if __name__ == "__main__":
 
         # 5. get metrics from the CSVs
         csv_reader.read()
+        metric_name = csv_reader.get_metric_name()
         metric = csv_reader.get_summarized_metric()
 
         # 6. save the metrics + the parametrization in the ParamSweeper
@@ -165,8 +167,9 @@ if __name__ == "__main__":
         # 9. export all results to a file (CSV?)
         # Analyze the .csv with R, or external analysis tool
         all_scores_by_config = sweeper.get_all_scores_by_config()
-        output_path = None # get it from the CLI arguments
-        persist_dict_to_a_csv(...)
+        output_path = None # TODO get it from the benchmark CLI arguments
+        csv_writer = CsvWriter(output_path, all_scores_by_config, metric_name)
+        csv_writer.write()
         print(f"All benchmark results are saved to {output_path}")
     else:
         print("No best configuration was found, check the logs.")
