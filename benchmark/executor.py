@@ -4,6 +4,7 @@ from data.config import Configuration, ApplicationParameters
 from sweeper.sweep import Sweeper
 from application.config_serializer import DefaultConfigSerializer
 from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit
+from application.csv_utils import CsvReader
 
 """
 INPUT:
@@ -115,12 +116,32 @@ if __name__ == "__main__":
             sweeper.skip(application_configuration)
             continue
 
-        # 4. collect the CSVs from the cluster
-        csv_path = Path("")
-        csv_content = [] #readcsv
+        '''    
+        4. [partially done] When the application finishes, we collect the logs and the CSVs with the metrics
+            Where to look for the CSVs?
+                - download from g5k..
+            What is the structure of the CSV?
+                - header: configuration, metric_name, metric_value
+                - example: 
+                    "param1=v1,param2=v2 ... paramn=vn", "[cpu(op),memory(GB),time(ms)]", "[r1, r2, r3]"
+                    ...
+                
+                - header: metric
+                - example:
+        
+            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[16732, 2162, 399]"
+            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[111232, 2162, 399]"
+            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[1132612, 2162, 399]"
+            We run the measurments n times, we release the csv, and calculate the avg for this specific configuration
+        '''
 
-        # 5. get metrics from the CSVs (see below)
-        metric = csv_to_metric()
+        # 4. collect the CSVs from the cluster
+        csv_path = None # TODO get CSV path from cluster or from local file system
+        csv_reader = CsvReader(csv_path)
+
+        # 5. get metrics from the CSVs
+        csv_reader.read()
+        metric = csv_reader.get_summarized_metric()
 
         # 6. save the metrics + the parametrization in the ParamSweeper
         sweeper.score(application_configuration, metric)
@@ -142,6 +163,7 @@ if __name__ == "__main__":
         print(f"Best config: {best_config}")
 
         # 9. export all results to a file (CSV?)
+        # Analyze the .csv with R, or external analysis tool
         all_scores_by_config = sweeper.get_all_scores_by_config()
         output_path = None # get it from the CLI arguments
         persist_dict_to_a_csv(...)
@@ -149,27 +171,8 @@ if __name__ == "__main__":
     else:
         print("No best configuration was found, check the logs.")
 
-    '''    
-    4. When the application finishes, we collect the logs and the CSVs with the metrics
-        Where to look for the CSVs?
-            - download from g5k..
-        What is the structure of the CSV?
-            - header: configuration, metric_name, metric_value
-            - example: 
-                "param1=v1,param2=v2 ... paramn=vn", "[cpu(op),memory(GB),time(ms)]", "[r1, r2, r3]"
-                ...
-            
-            - header: metric
-            - example:
-
-        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[16732, 2162, 399]"
-        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[111232, 2162, 399]"
-        "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[1132612, 2162, 399]"
-        We run the measurments n times, we release the csv, and calculate the avg for this specific configuration
-
-        Future discussion: fault tolerance 
-    
-    6. Anaylse the .csv with R, or external analysis tool
+    '''
+     Future discussion: fault tolerance, parallel execution of multiple configurations?
     '''
 
 
