@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
 from data.config import Configuration, ApplicationParameters
-from deploy.sweep import Sweeper
-from deploy.utils import DefaultConfigSerializer
+from sweeper.sweep import Sweeper
+from application.config_serializer import DefaultConfigSerializer
 from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit
 
 """
