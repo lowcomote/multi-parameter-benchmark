@@ -92,24 +92,62 @@ if __name__ == "__main__":
     to the application (--> application-specific serialization?)
     '''
     # setup sweeper
-    sweeper = Sweeper(parameters.parameters, remove_workdir=True)
+    # Is train = rerun the application N times with the same config? If not, then we shall repeat the spark_submit N times and take the avg of the results?
+    sweeper = Sweeper(parameters.parameters, remove_workdir=True, train=10)
     application_configuration = sweeper.get_next()
-    cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
+    has_next = application_configuration is not None
 
-    # In each loop iteration:
-    # 1. get the next arguments from param_sweeper
-    # 2. submit the application to the cluster with these parameters
-    # 3. wait for the application to finish
-    # 4. collect the CSVs from the cluster
-    # 5. get metrics from the CSVs (see below)
-    # 6. save the metrics + the parametrization in the ParamSweeper
-    # 7. goto step 1, until ParamSweeper gives next param
-    # 8. if ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
-    # 9. export these results to a file (CSV?)
+    while has_next:
+        # In each loop iteration:
+        # 1. serialize the arguments received from the param sweeper
+        cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
+
+        # 2. submit the application to the cluster with these parameters
+        spark_submit.submit_with_log(...)
+
+        # 3. wait for the application to finish
+
+
+        # If the application throws an exception, then mark the config as erroneous
+        # how to check if the app threw an exception?
+        exception_occurred = False
+        if exception_occurred:
+            sweeper.skip(application_configuration)
+            continue
+
+        # 4. collect the CSVs from the cluster
+        csv_path = Path("")
+        csv_content = [] #readcsv
+
+        # 5. get metrics from the CSVs (see below)
+        metric = csv_to_metric()
+
+        # 6. save the metrics + the parametrization in the ParamSweeper
+        sweeper.score(application_configuration, metric)
+        sweeper.done(application_configuration)
+
+        # 7. get the next parametrization
+        application_configuration = sweeper.get_next()
+        has_next = application_configuration is not None
 
     # Undeploy (TODO even if an error occurred!)
     spark_submit.stop()
     cluster_reserver.stop()
+
+    if sweeper.has_best():
+        # 8. if ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
+        best_config = sweeper.best()
+        best_score = sweeper.get_score(best_config)
+        print(f"Best score: {best_score}")
+        print(f"Best config: {best_config}")
+
+        # 9. export all results to a file (CSV?)
+        all_scores_by_config = sweeper.get_all_scores_by_config()
+        output_path = None # get it from the CLI arguments
+        persist_dict_to_a_csv(...)
+        print(f"All benchmark results are saved to {output_path}")
+    else:
+        print("No best configuration was found, check the logs.")
 
     '''    
     4. When the application finishes, we collect the logs and the CSVs with the metrics
