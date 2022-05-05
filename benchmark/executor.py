@@ -153,10 +153,7 @@ if __name__ == "__main__":
         application_configuration = sweeper.get_next()
         has_next = application_configuration is not None
 
-    # Undeploy (TODO even if an error occurred!)
-    spark_submit.stop()
-    cluster_reserver.stop()
-
+    # Export benchmark results
     if sweeper.has_best():
         # 8. if ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
         best_config = sweeper.best()
@@ -173,6 +170,22 @@ if __name__ == "__main__":
         print(f"All benchmark results are saved to {output_path}")
     else:
         print("No best configuration was found, check the logs.")
+
+    # Stop Spark cluster
+    try:
+        print("Stopping Spark cluster")
+        spark_submit.stop()
+        print("Spark cluster stopped")
+    except Exception as err:
+        print(f"Exception occurred: {err}")
+
+    # Undeploy computation platform
+    try:
+        print("Undeploying computation cluster")
+        cluster_reserver.stop()
+        print("Computation cluster undeployed")
+    except Exception as err:
+        print(f"Exception occurred: {err}")
 
     '''
      Future discussion: fault tolerance, parallel execution of multiple configurations?
