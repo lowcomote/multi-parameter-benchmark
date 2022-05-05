@@ -64,6 +64,9 @@ class Sweeper:
         self.__not_scored.remove(config)
         self.sweeper.done(config)
 
+    def skip(self, config):
+       self.sweeper.skip(config)
+
     def _find_best(self, scores: dict, starting_with: List[str], lower: bool = True):
         '''
         scores: dict: List[str] -> Metric 
@@ -113,22 +116,27 @@ class Sweeper:
             self.__remaining_train = self.__remaining_train - 1
             return res
 
-    def score(self, config, score) -> Metric:
+    def score(self, config, score):
         if config not in self.__scores:
             self.__scores[config] = list()
         self.__scores[config].append(score)
-        return score
 
-    def get_score(self, config): 
+    def get_score(self, config) -> Metric:
         if config in self.__scores:
-          sum(self.__scores[config]) / len(self.__scores[config])
+            # Shall we implement an operator overload on the Metric class to make sum and len work? (Instead of raw numbers in an array we store Metric.)
+            # return sum(self.__scores[config]) / len(self.__scores[config])
+            return self.__scores[config]
         else:
-          raise KeyError(f'The config {config} have not been tested yet.')
+            raise KeyError(f'The config {config} have not been tested yet.')
 
-    def skip(self, config):
-        self.sweeper.skip(config)
+    def get_all_scores_by_config(self):
+        return self.__scores
+
+    def has_best(self):
+        return self.__selected is not None
 
     def best(self):
+        # TODO (question from Benedek) Why is self.__selected a List not a single Configuration?
         return self.__selected
 
 # if __name__ == '__main__':
