@@ -31,7 +31,7 @@ class Metric(ABC):
         pass
 
     @abstractmethod
-    def	__iadd__(self, other: Metric):
+    def __iadd__(self, other: Metric):
         pass
 
     @abstractmethod
@@ -61,6 +61,7 @@ class Metric(ABC):
         else:
             raise Exception(f"Array contains more than three or zero metrics {metrics}.")
 
+
 @dataclass
 class LongMetric(Metric):
 
@@ -83,7 +84,7 @@ class LongMetric(Metric):
     def __add__(self, other: LongMetric) -> LongMetric:
         return LongMetric(self._value + other._value)
 
-    def	__iadd__(self, other: LongMetric):
+    def __iadd__(self, other: LongMetric):
         self._value += other._value
 
     def __truediv__(self, num: int) -> LongMetric:
@@ -95,6 +96,7 @@ class LongMetric(Metric):
     @property
     def value(self):
         return self._value
+
 
 @dataclass
 class Tuple2Metric(Metric):
@@ -119,7 +121,7 @@ class Tuple2Metric(Metric):
     def __add__(self, other: Tuple2Metric) -> Tuple2Metric:
         return Tuple2Metric(self._v1 + other._v1, self._v2 + other._v2)
 
-    def	__iadd__(self, other: Tuple2Metric):
+    def __iadd__(self, other: Tuple2Metric):
         self._v1 += other._v1
         self._v2 += other._v2
 
@@ -132,6 +134,7 @@ class Tuple2Metric(Metric):
     @property
     def value(self):
         return self
+
 
 @dataclass
 class Tuple3Metric(Metric):
@@ -157,7 +160,7 @@ class Tuple3Metric(Metric):
     def __add__(self, other: Tuple3Metric) -> Tuple3Metric:
         return Tuple3Metric(self._v1 + other._v1, self._v2 + other._v2, self._v3 + other._v3)
 
-    def	__iadd__(self, other: Tuple3Metric):
+    def __iadd__(self, other: Tuple3Metric):
         self._v1 += other._v1
         self._v2 += other._v2
         self._v3 += other._v3

@@ -1,18 +1,8 @@
-"""
-A module for quickly configuring a Spark standalone cluster on Grid5000 and submitting Spark applications on a Spark cluster.
-
-class: SparkG5kConf: the Spark configuration for G5k
-class: SparkSubmit: the abstract parent of the infrastructure-specific Spark Submit classes
-class: LocalSparkSubmit: the Spark Submit class that deploys on localhost
-class: G5kSparkSubmit: the Spark Submit class that deploys on G5k
-"""
-import subprocess
-
+import subprocess, os
 from enoslib import *
 from enoslib.infra.enos_g5k.g5k_api_utils import get_api_username
 from abc import ABC, abstractmethod
 
-import os
 
 class ClusterReserver(ABC):
 
@@ -34,9 +24,9 @@ class NoopClusterReserver(ClusterReserver):
         pass
 
 
-class SparkG5kConf(ClusterReserver):
+class G5kClusterReserver(ClusterReserver):
     """
-    SparkG5kConf to reserve a cluster on G5k.
+    G5kClusterReserver to reserve a cluster on G5k.
 
     Methods:
         start, stop
@@ -45,11 +35,11 @@ class SparkG5kConf(ClusterReserver):
 
         .. code-block:: python
 
-            from sparklib import SparkG5kConf
+            from sparklib import G5kClusterReserver
             
             ...
 
-            g5kconf = SparkG5kConf(site="nancy", cluster="gros", worker=1, jobname="Spark_test", time="00:10:00", start="now")
+            g5kconf = G5kClusterReserver(site="nancy", cluster="gros", worker=1, jobname="Spark_test", time="00:10:00", start="now")
             try:
                 g5kconf.start()
                 username = g5kconf.username
@@ -98,15 +88,15 @@ class SparkG5kConf(ClusterReserver):
 
         # Setup g5k conf
         conf = None
-        if self.__start_time == SparkG5kConf._DEFAULT_START:
+        if self.__start_time == G5kClusterReserver._DEFAULT_START:
             conf = (
                 G5kConf.from_settings(job_type="allow_classic_ssh", job_name=self.__jobname, walltime=self.__time)
                     .add_network_conf(my_network)
                     .add_machine(
-                    roles=[SparkG5kConf.ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[G5kClusterReserver.ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .add_machine(
-                    roles=[SparkG5kConf.ROLE_WORKER], cluster=self.__cluster, nodes=self.__worker,
+                    roles=[G5kClusterReserver.ROLE_WORKER], cluster=self.__cluster, nodes=self.__worker,
                     primary_network=my_network
                 )
                     .finalize()
@@ -117,10 +107,10 @@ class SparkG5kConf(ClusterReserver):
                                       reservation=self.__start_time)
                     .add_network_conf(my_network)
                     .add_machine(
-                    roles=[SparkG5kConf.ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[G5kClusterReserver.ROLE_MASTER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .add_machine(
-                    roles=[SparkG5kConf.ROLE_WORKER], cluster=self.__cluster, nodes=1, primary_network=my_network
+                    roles=[G5kClusterReserver.ROLE_WORKER], cluster=self.__cluster, nodes=1, primary_network=my_network
                 )
                     .finalize()
             )
@@ -435,16 +425,16 @@ class G5kSparkSubmit(SparkSubmit):
     def __init__(self, username, roles):
         self.__username = username
         self.__roles = roles
-        self.__master = self.__roles[SparkG5kConf.ROLE_MASTER][0].address  # get master address
+        self.__master = self.__roles[G5kClusterReserver.ROLE_MASTER][0].address  # get master address
 
     def _on_start(self):
         """
         Deploy the Spark cluster.
         """
-        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             cmd = "{0}{1}sbin/start-master.sh -p 7077".format(self._shell_set_java_cmd, self.__spark)
             p.shell(cmd)
-        with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
             cmd = "{0}{1}sbin/start-worker.sh spark://{2}:7077".format(self._shell_set_java_cmd, self.__spark,
                                                                        self.__master)
             p.shell(cmd)
@@ -454,9 +444,9 @@ class G5kSparkSubmit(SparkSubmit):
         Stop current Spark cluster.
         """
         cmd = "{0}{1}sbin/stop-all.sh".format(self._shell_set_java_cmd, self.__spark)
-        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             p.shell(cmd)
-        with play_on(pattern_hosts=SparkG5kConf.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
             p.shell(cmd)
 
     def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str,
@@ -480,7 +470,7 @@ class G5kSparkSubmit(SparkSubmit):
         """
         shell_out_log = (">> {0}".format(path_log)) if path_log != SparkSubmit._NO_PATHLOG else ""
         shell_out_err = ("2>> {0}".format(path_err)) if path_log != SparkSubmit._NO_PATHERR else ""
-        with play_on(pattern_hosts=SparkG5kConf.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             try:
                 cmd = "{0}{1}bin/spark-submit --master spark://{2}:7077 {3} --class {4} {5} {6} {7} {8}".format(
                     self._shell_set_java_cmd, self.__spark, self.__master, spark_args, classname, path_jar,

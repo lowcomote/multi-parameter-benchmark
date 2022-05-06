@@ -1,5 +1,6 @@
 from marshmallow_dataclass import dataclass
-from typing import List
+from dataclasses import dataclass as python_dataclass, asdict
+from typing import List, Optional
 from enum import Enum
 
 
@@ -7,25 +8,35 @@ from enum import Enum
 class BenchmarkConfig:
     warmup_rounds: int
     measurement_rounds: int
+    output_csv_path: str
 
 
 @dataclass
-class ClusterConfig:
-    '''
-    Cluster configuration parameters needed for G5k.
-    '''
+@python_dataclass
+class G5kClusterConfig:
+    site: str
+    cluster: str
+    worker: int
+    jobname: Optional[str]
+    time: Optional[str]
+    start: Optional[str]
 
-    dummy_param: str
+    def filter_none_fields(self):
+        dict_self = asdict(self)
+        return {key: value for key, value in dict_self.items() if value is not None}
 
 
 @dataclass
 class SparkConfig:
     spark_home: str
     java_home: str
+    application_jar_path: str
+    application_classname: str
+
 
 @dataclass
 class Configuration:
-    cluster_config: ClusterConfig
+    cluster_config: G5kClusterConfig
     spark_config: SparkConfig
     benchmark_config: BenchmarkConfig
 

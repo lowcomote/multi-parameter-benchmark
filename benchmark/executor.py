@@ -1,9 +1,10 @@
 import argparse
 from pathlib import Path
-from data.config import Configuration, ApplicationParameters
+from data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig
 from sweeper.sweep import Sweeper
-from application.config_serializer import DefaultConfigSerializer
-from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit
+from application.config_transformer import ToCliConfigTransformer
+from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, G5kClusterReserver, \
+    G5kSparkSubmit
 from application.csv_utils import CsvReader, CsvWriter
 
 """
@@ -71,21 +72,29 @@ if __name__ == "__main__":
 
     '''
     3. [done] We submit the application to the spark cluster with these parameters...
-    SparkG5kConf:
+    G5kClusterReserver:
         - setting JAVA_HOME is optional
         - setting SPARK_HOME is mandatory
         - path to the application JAR is mandatory
         - application class is mandatory
-    We could refactor SparkG5kConf and extract the Spark-submit functions so that they can be used for local clusters as well.
+    We could refactor SparkG5kConf (new name: G5kClusterReserver) and extract the Spark-submit functions so that they can be used for local clusters as well.
     '''
     # Reserve cluster (optional step?)
-    cluster_reserver : ClusterReserver = NoopClusterReserver()
+    # g5k_config: G5kClusterConfig = config.cluster_config
+    # set_cluster_args = g5k_config.filter_none_fields()
+    # cluster_reserver: G5kClusterReserver = G5kClusterReserver(**set_cluster_args)
+    cluster_reserver: NoopClusterReserver = NoopClusterReserver()
     cluster_reserver.start()
 
     # Start the spark cluster
     # TODO should you deploy to G5k, then copy Spark and the application to your HOME folder, because G5k will upload it to the cluster
-    spark_submit : SparkSubmit = LocalSparkSubmit()
-    spark_submit.set_spark_path(config.spark_config.spark_home)
+    # roles = cluster_reserver.roles
+    # username = cluster_reserver.username
+    # spark_submit: SparkSubmit = G5kSparkSubmit(username=username, roles=roles)
+    spark_submit: SparkSubmit = LocalSparkSubmit()
+
+    spark_config: SparkConfig = config.spark_config
+    spark_submit.set_spark_path(spark_config.spark_home)
     spark_submit.start()
 
     '''
@@ -98,14 +107,19 @@ if __name__ == "__main__":
     application_configuration = sweeper.get_next()
     has_next = application_configuration is not None
 
-    metric_name = None # used in CSV Writer to print the metric name
+    metric_name = None  # used in CSV Writer to print the metric name
     while has_next:
         # In each loop iteration:
         # 1. serialize the arguments received from the param sweeper
-        cli_arguments = DefaultConfigSerializer(application_configuration).serialize()
+        cli_arguments = ToCliConfigTransformer(application_configuration).transform()
 
-        # 2. TODO submit the application to the cluster with these parameters
-        spark_submit.submit_with_log(...)
+        # TODO Do we want to run the application N times with the same parametrization? If so, where do we execute the warmup and the benchmark rounds?
+        # (The corresponding config parameters are in BenchmarkConfig.warmup_rounds and measurement_rounds.)
+
+        # 2. submit the application to the cluster with these parameters
+        spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
+                                     classname=spark_config.application_classname,
+                                     java_args=cli_arguments)
 
         # 3. TODO wait for the application to finish
         spark_submit.is_finished(...)
@@ -137,7 +151,7 @@ if __name__ == "__main__":
         '''
 
         # 4. collect the CSVs from the cluster
-        csv_path = None # TODO get CSV path from cluster or from local file system
+        csv_path = None  # TODO get CSV path from cluster or from local file system
         csv_reader = CsvReader(csv_path)
 
         # 5. get metrics from the CSVs
@@ -164,7 +178,7 @@ if __name__ == "__main__":
         # 9. export all results to a file (CSV?)
         # Analyze the .csv with R, or external analysis tool
         all_scores_by_config = sweeper.get_all_scores_by_config()
-        output_path = None # TODO get it from the benchmark CLI arguments
+        output_path = config.benchmark_config.output_csv_path
         csv_writer = CsvWriter(output_path, all_scores_by_config, metric_name)
         csv_writer.write()
         print(f"All benchmark results are saved to {output_path}")
@@ -190,5 +204,3 @@ if __name__ == "__main__":
     '''
      Future discussion: fault tolerance, parallel execution of multiple configurations?
     '''
-
-

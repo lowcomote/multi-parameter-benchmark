@@ -5,6 +5,7 @@ from typing import List
 from pathlib import Path
 import shutil, os, random
 
+
 # TODO : extend execo_engine.ParamSweeper
 # https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py
 # with tree + heuristic mechanism
@@ -34,9 +35,9 @@ class Sweeper:
                     Instantiated empty
         __not_scored : a list of configuration that have not been scored yet
         """
-        self.__train = train # maximal number of train before picking one configuration for a parameter
+        self.__train = train  # maximal number of train before picking one configuration for a parameter
         self.__remaining_train = train
-        self.__scores = dict() # keeping a record of current calculated scores
+        self.__scores = dict()  # keeping a record of current calculated scores
         self.__not_scored = sweeps
         # TODO self.__constraints = self._to_parameters_constraint(parameters)
         self.__current_parameter_index = 0
@@ -96,12 +97,12 @@ class Sweeper:
         '''
         result = list()
         for sequence in sequences:
-            if ''.join(sequence).startswith(''.join(start)): 
+            if ''.join(sequence).startswith(''.join(start)):
                 result.append(sequence)
         return result
 
     def get_next(self):
-        if self.__remaining_train == 0: 
+        if self.__remaining_train == 0:
             best = self._find_best(self.__scores, self.__selected) # Find best sequence of argument, starting with already selected ones
             self.__selected.append(best(self.__current_parameter_index)) # Add the new config value to the selected ones
             self.__current_parameter_index = self.__current_parameter_index + 1 # Increase the index of the focused param
