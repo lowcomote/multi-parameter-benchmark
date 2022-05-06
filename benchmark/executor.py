@@ -1,4 +1,5 @@
 import argparse
+import time
 from pathlib import Path
 from data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig
 from sweeper.sweep import Sweeper
@@ -117,12 +118,16 @@ if __name__ == "__main__":
         # (The corresponding config parameters are in BenchmarkConfig.warmup_rounds and measurement_rounds.)
 
         # 2. submit the application to the cluster with these parameters
-        spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
-                                     classname=spark_config.application_classname,
-                                     java_args=cli_arguments)
+        # TODO return submission_id of the job: https://stackoverflow.com/a/55178223 --> deploy the app in deploy-mode cluster
+        submission_id = spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
+                                                     classname=spark_config.application_classname,
+                                                     java_args=cli_arguments)
 
-        # 3. TODO wait for the application to finish
-        spark_submit.is_finished(...)
+        # 3. wait for the application to finish
+        finished = spark_submit.is_finished(submission_id)
+        while not finished:
+            time.sleep(10) # sleep x seconds
+            finished = spark_submit.is_finished(submission_id)
 
         # If the application throws an exception, then mark the config as erroneous
         # how to check if the app threw an exception?

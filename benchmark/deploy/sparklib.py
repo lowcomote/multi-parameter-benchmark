@@ -275,6 +275,10 @@ class SparkSubmit(ABC):
     def _on_stop(self):
         pass
 
+    @abstractmethod
+    def is_finished(self, submission_id: str) -> bool:
+        pass
+
 
 class LocalSparkSubmit(SparkSubmit):
     """
@@ -389,6 +393,10 @@ class LocalSparkSubmit(SparkSubmit):
             subprocess.run(cmd)
             self._restore_java_home()
 
+    def is_finished(self, submission_id: str) -> bool:
+        # TODO https://stackoverflow.com/questions/37420537/how-to-check-status-of-spark-applications-from-the-command-line/37420931#37420931
+        pass
+
 
 class G5kSparkSubmit(SparkSubmit):
     """
@@ -486,3 +494,7 @@ class G5kSparkSubmit(SparkSubmit):
     @property
     def _shell_set_java_cmd(self):
         return ("JAVA_HOME={0} ".format(self.__java)) if self.__isSetJava else ""
+
+    def is_finished(self, submission_id: str) -> bool:
+        # TODO https://stackoverflow.com/questions/37420537/how-to-check-status-of-spark-applications-from-the-command-line/37420931#37420931
+        pass
