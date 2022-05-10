@@ -41,6 +41,7 @@ class Sweeper:
         self.__not_scored = sweeps
         # TODO self.__constraints = self._to_parameters_constraint(parameters)
         self.__current_parameter_index = 0
+        # the concrete value bindings (configuration) for each parameter, that produce the best metric
         self.__selected = list()
 
     # TODO
@@ -124,9 +125,8 @@ class Sweeper:
 
     def get_score(self, config) -> Metric:
         if config in self.__scores:
-            # Shall we implement an operator overload on the Metric class to make sum and len work? (Instead of raw numbers in an array we store Metric.)
-            # return sum(self.__scores[config]) / len(self.__scores[config])
-            return self.__scores[config]
+            return sum(self.__scores[config]) / len(self.__scores[config])
+            #return self.__scores[config]
         else:
             raise KeyError(f'The config {config} have not been tested yet.')
 
@@ -137,7 +137,6 @@ class Sweeper:
         return self.__selected is not None
 
     def best(self):
-        # TODO (question from Benedek) Why is self.__selected a List not a single Configuration?
         return self.__selected
 
 # if __name__ == '__main__':
