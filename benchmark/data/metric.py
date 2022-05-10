@@ -43,8 +43,7 @@ class Metric(ABC):
         pass
 
     @abstractmethod
-    @property
-    def value(self):
+    def get_value(self):
         pass
 
     @staticmethod
@@ -91,10 +90,9 @@ class LongMetric(Metric):
         return LongMetric(self._value // num)
 
     def __str__(self) -> str:
-        return f"[{self.value}]"
+        return f"[{self.get_value}]"
 
-    @property
-    def value(self):
+    def get_value(self):
         return self._value
 
 
@@ -129,10 +127,9 @@ class Tuple2Metric(Metric):
         return Tuple2Metric(self._v1 / num, self._v2 / num)
 
     def __str__(self) -> str:
-        return f"[{self._v1.value},{self._v2.value}]"
+        return f"[{self._v1.get_value()},{self._v2.get_value()}]"
 
-    @property
-    def value(self):
+    def get_value(self):
         return self
 
 
@@ -169,8 +166,7 @@ class Tuple3Metric(Metric):
         return Tuple3Metric(self._v1 / num, self._v2 / num, self._v3 / num)
 
     def __str__(self) -> str:
-        return f"[{self._v1.value},{self._v2.value},{self._v3.value}]"
+        return f"[{self._v1.get_value()},{self._v2.get_value()},{self._v3.get_value()}]"
 
-    @property
-    def value(self):
+    def get_value(self):
         return self
