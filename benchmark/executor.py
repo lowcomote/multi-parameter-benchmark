@@ -116,17 +116,19 @@ if __name__ == "__main__":
 
         # TODO Do we want to run the application N times with the same parametrization? If so, where do we execute the warmup and the benchmark rounds?
         # (The corresponding config parameters are in BenchmarkConfig.warmup_rounds and measurement_rounds.)
+        # Yes, we should do it, but do not forget to save it (step 6) and avoid reading the earlier results from the CSV twice (--> delete the CSVs, before processing them).
 
         # 2. submit the application to the cluster with these parameters
-        # TODO return submission_id of the job: https://stackoverflow.com/a/55178223 --> deploy the app in deploy-mode cluster
+        spark_args = {"deploy-mode": "cluster"}  # see https://stackoverflow.com/a/55178223
         submission_id = spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
                                                      classname=spark_config.application_classname,
-                                                     java_args=cli_arguments)
+                                                     java_args=cli_arguments, spark_args=spark_args)
 
         # 3. wait for the application to finish
+        # TODO implement a blocking-wait instead (see how we can do it asynchronously in python)
         finished = spark_submit.is_finished(submission_id)
         while not finished:
-            time.sleep(10) # sleep x seconds
+            time.sleep(10)  # sleep x seconds
             finished = spark_submit.is_finished(submission_id)
 
         # If the application throws an exception, then mark the config as erroneous
@@ -175,6 +177,8 @@ if __name__ == "__main__":
     # Export benchmark results
     if sweeper.has_best():
         # 8. if ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
+        # TODO instead of the sweeper.best() method we need a method which creates a config from the best value bindings
+        # i.e. [1,A,a] -> p1=1,p2=A,p3=a; Because sweeper.__scores store the concrete bindings.
         best_config = sweeper.best()
         best_score = sweeper.get_score(best_config)
         print(f"Best score: {best_score}")

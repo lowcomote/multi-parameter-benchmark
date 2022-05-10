@@ -279,6 +279,11 @@ class SparkSubmit(ABC):
     def is_finished(self, submission_id: str) -> bool:
         pass
 
+    @staticmethod
+    def _is_finished(status):
+        # Spark application states: https://stackoverflow.com/questions/39172115/what-is-the-difference-between-failed-and-error-in-spark-application-states
+        return status in ["FINISHED", "KILLED", "FAILED", "ERROR"]
+
 
 class LocalSparkSubmit(SparkSubmit):
     """
@@ -384,6 +389,8 @@ class LocalSparkSubmit(SparkSubmit):
                 self.__spark, self.__number_of_cores, spark_args, classname, path_jar, java_args,
                 shell_out_log, shell_out_err)
             subprocess.run(cmd, shell=True, capture_output=True, check=True)
+            submission_id = None  # TODO read_cli_output(cmd)
+            return submission_id
         except Exception as e:
             print(e)
         finally:
@@ -392,10 +399,14 @@ class LocalSparkSubmit(SparkSubmit):
             cmd = "mv {0} {1}".format(path_err, "~")
             subprocess.run(cmd)
             self._restore_java_home()
+        return None
 
     def is_finished(self, submission_id: str) -> bool:
-        # TODO https://stackoverflow.com/questions/37420537/how-to-check-status-of-spark-applications-from-the-command-line/37420931#37420931
-        pass
+        cmd = "{0}bin/spark-submit --status {1} --master spark://local[{2}]".format(self.__spark, submission_id,
+                                                                                    self.__number_of_cores)
+        subprocess.run(cmd, shell=True, capture_output=True, check=True)
+        status_output = None  # TODO read_cli_output(cmd)...
+        return SparkSubmit._is_finished(status_output)
 
 
 class G5kSparkSubmit(SparkSubmit):
@@ -484,17 +495,25 @@ class G5kSparkSubmit(SparkSubmit):
                     self._shell_set_java_cmd, self.__spark, self.__master, spark_args, classname, path_jar,
                     java_args, shell_out_log, shell_out_err)
                 p.shell(cmd)
+                submission_id = None  # TODO read_cli_output(cmd)
                 os.system("rm -rf {0}work".format(self.__spark))
+                return submission_id
             except Exception as e:
                 print(e)
             finally:
                 p.fetch(src=path_log, dest="~")
                 p.fetch(src=path_err, dest="~")
+        return None
 
     @property
     def _shell_set_java_cmd(self):
         return ("JAVA_HOME={0} ".format(self.__java)) if self.__isSetJava else ""
 
     def is_finished(self, submission_id: str) -> bool:
-        # TODO https://stackoverflow.com/questions/37420537/how-to-check-status-of-spark-applications-from-the-command-line/37420931#37420931
-        pass
+        with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
+            cmd = "{0}{1}bin/spark-submit --status {2} --master spark://{3}:7077".format(self._shell_set_java_cmd,
+                                                                                         self.__spark, submission_id,
+                                                                                         self.__master)
+            p.shell(cmd)
+            status_output = None  # TODO read_cli_output(cmd)...
+            return SparkSubmit._is_finished(status_output)
