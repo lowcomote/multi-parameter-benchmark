@@ -1,6 +1,4 @@
-# CountWord project
 target/*
-project/*
 
 # Compiled class file
 *.class
