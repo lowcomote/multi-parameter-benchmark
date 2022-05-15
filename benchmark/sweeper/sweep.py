@@ -126,7 +126,6 @@ class Sweeper:
     def get_score(self, config) -> Metric:
         if config in self.__scores:
             return sum(self.__scores[config]) / len(self.__scores[config])
-            #return self.__scores[config]
         else:
             raise KeyError(f'The config {config} have not been tested yet.')
 
@@ -138,31 +137,3 @@ class Sweeper:
 
     def best(self):
         return self.__selected
-
-# if __name__ == '__main__':
-#     def get_test_parameters():
-#         parameters_dict = dict(
-#             param1=["param1_1", "param1_2"],
-#             param2=["param2_1", "param2_2"],
-#             param3=["param3_1", "param3_2"],
-#             param4=["param4_1", "param4_2"]
-#         )
-#         return [ApplicationParameter(name=key, priority=1, values=values, constraints=[])
-#                 for key, values in parameters_dict.items()]
-
-
-#     parameters = get_test_parameters()
-#     sweeper = Sweeper(parameters=parameters, remove_workdir=False)
-#     config = sweeper.get_next()
-#     while config:
-#         try:
-#             p1 = config["param1"]
-#             p2 = config["param2"]
-#             p3 = config["param3"]
-#             p4 = config["param4"]
-#             print(f"{p1}; {p2}; {p3}; {p4}")
-#             sweeper.done(config)
-#         except Exception as e:
-#             sweeper.skip(config)
-#         finally:
-#             config = sweeper.get_next()
