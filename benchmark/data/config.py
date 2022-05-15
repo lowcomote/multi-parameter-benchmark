@@ -8,7 +8,9 @@ from enum import Enum
 class BenchmarkConfig:
     warmup_rounds: int
     measurement_rounds: int
-    output_csv_path: str
+    all_in_one_benchmark_results_csv_path: str
+    application_metrics_csv_param_name: str
+    application_metrics_csv_path: str
 
 
 @dataclass

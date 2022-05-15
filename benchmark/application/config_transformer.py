@@ -13,7 +13,10 @@ class ApplicationConfigTransformer(ABC):
 
 class ToCliConfigTransformer(ApplicationConfigTransformer):
     def transform(self):
-        return self.config.items()
+        cloned = dict()
+        for key, value in self.config.items():
+            cloned[key] = value
+        return cloned
 
 
 class ToCsvConfigTransformer(ApplicationConfigTransformer):

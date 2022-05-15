@@ -204,7 +204,7 @@ class SparkSubmit(ABC):
         self.test_with_log(SparkSubmit._NO_PATHLOG, SparkSubmit._NO_PATHERR)
 
     def submit_with_log(self, path_jar: str, classname: str, spark_args=None, java_args=None,
-                        path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
+                        path_metrics_csv: str = None, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """
         Submit a Spark job on the cluster using files as output.
 
@@ -217,16 +217,20 @@ class SparkSubmit(ABC):
                 A dictionary of Spark argument.
             java_args:
                 A dictionary of Java argument for the main program. If arguments `arg` has no name, please use {"":arg}.
+            path_metrics_csv:
+                Path of the metrics CSV.
             path_log:
                 Path to the file the standard output will be printed in.
             path_err:
                 Path to the file the error output will be printed in.
         """
-        # Get Spark arguments as a single string value
+        # java_args and spark_args default values
         if java_args is None:
             java_args = {}
         if spark_args is None:
             spark_args = {}
+
+        # Get Spark arguments as a single string value
         str_spark_args = ""
         for arg in spark_args.keys():
             str_arg = arg
@@ -234,15 +238,18 @@ class SparkSubmit(ABC):
                 str_arg = "--" + arg
             value = spark_args.get(arg)
             str_spark_args = str_spark_args + str_arg + " " + value + " "
+
         # Get Java arguments (of the Jar) arguments as a single string value
         str_java_args = ""
         for arg in java_args.keys():
             value = java_args.get(arg)
             str_java_args = str_java_args + arg + " " + value + " "
-        # Submit the application on the cluster
-        self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_log, path_err)
 
-    def submit(self, path_jar: str, classname: str, spark_args=None, java_args=None):
+        # Submit the application to the cluster
+        print("Submitting Spark application to the cluster.")
+        self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_metrics_csv, path_log, path_err)
+
+    def submit(self, path_jar: str, classname: str, path_metrics_csv: str, spark_args=None, java_args=None):
         """ Submit a Spark job on the cluster.
 
         Args:
@@ -250,6 +257,8 @@ class SparkSubmit(ABC):
                 Path to the program as a jar file.
             classname:
                 Main class to execute in path_jar.
+            path_metrics_csv:
+                Path of the metrics CSV.
             spark_args:
                 A dictionary of Spark argument.
             java_args:
@@ -259,12 +268,12 @@ class SparkSubmit(ABC):
             java_args = {}
         if spark_args is None:
             spark_args = {}
-        self.submit_with_log(path_jar, classname, spark_args, java_args, SparkSubmit._NO_PATHLOG,
+        self.submit_with_log(path_jar, classname, spark_args, java_args, path_metrics_csv, SparkSubmit._NO_PATHLOG,
                              SparkSubmit._NO_PATHERR)
 
     @abstractmethod
-    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_log: str = "/tmp/out.log",
-                   path_err: str = "/tmp/out.err"):
+    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_metrics_csv: str,
+                   path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         pass
 
     @abstractmethod
@@ -274,15 +283,6 @@ class SparkSubmit(ABC):
     @abstractmethod
     def _on_stop(self):
         pass
-
-    @abstractmethod
-    def is_finished(self, submission_id: str) -> bool:
-        pass
-
-    @staticmethod
-    def _is_finished(status):
-        # Spark application states: https://stackoverflow.com/questions/39172115/what-is-the-difference-between-failed-and-error-in-spark-application-states
-        return status in ["FINISHED", "KILLED", "FAILED", "ERROR"]
 
 
 class LocalSparkSubmit(SparkSubmit):
@@ -362,8 +362,8 @@ class LocalSparkSubmit(SparkSubmit):
         finally:
             self._restore_java_home()
 
-    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_log: str = "/tmp/out.log",
-                   path_err: str = "/tmp/out.err"):
+    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_metrics_csv: str,
+                   path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """
        Submit a Spark job on the cluster using files as output.
 
@@ -376,6 +376,8 @@ class LocalSparkSubmit(SparkSubmit):
                A string of Spark arguments.
            java_args:
                A string of Java arguments for the main program.
+           path_metrics_csv:
+               Path of the metrics CSV.
            path_log:
                Path to the file the standard output will be printed in.
            path_err:
@@ -388,25 +390,24 @@ class LocalSparkSubmit(SparkSubmit):
             cmd = "{0}bin/spark-submit --master spark://local[{1}] {2} --class {3} {4} {5} {6} {7}".format(
                 self.__spark, self.__number_of_cores, spark_args, classname, path_jar, java_args,
                 shell_out_log, shell_out_err)
-            subprocess.run(cmd, shell=True, capture_output=True, check=True)
-            submission_id = None  # TODO read_cli_output(cmd)
-            return submission_id
+            process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
+
+            return_code = process.returncode
+            if return_code != 0:
+                raise Exception(
+                    f"Spark application's return code {return_code} is not 0. Check error log, because an exception might have occurred.")
+
+            print(f"Returning metrics CSV local path: {path_metrics_csv}")
+            return path_metrics_csv
         except Exception as e:
             print(e)
+            return None
         finally:
             cmd = "mv {0} {1}".format(path_log, "~")
             subprocess.run(cmd)
             cmd = "mv {0} {1}".format(path_err, "~")
             subprocess.run(cmd)
             self._restore_java_home()
-        return None
-
-    def is_finished(self, submission_id: str) -> bool:
-        cmd = "{0}bin/spark-submit --status {1} --master spark://local[{2}]".format(self.__spark, submission_id,
-                                                                                    self.__number_of_cores)
-        subprocess.run(cmd, shell=True, capture_output=True, check=True)
-        status_output = None  # TODO read_cli_output(cmd)...
-        return SparkSubmit._is_finished(status_output)
 
 
 class G5kSparkSubmit(SparkSubmit):
@@ -468,7 +469,7 @@ class G5kSparkSubmit(SparkSubmit):
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
             p.shell(cmd)
 
-    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str,
+    def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_metrics_csv: str,
                    path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
         """
         Submit a Spark job on the cluster using files as output.
@@ -482,6 +483,8 @@ class G5kSparkSubmit(SparkSubmit):
                 A string of Spark arguments.
             java_args:
                 A string of Java arguments for the main program.
+            path_metrics_csv:
+                Path of the metrics CSV.
             path_log:
                 Path to the file the standard output will be printed in.
             path_err:
@@ -495,25 +498,42 @@ class G5kSparkSubmit(SparkSubmit):
                     self._shell_set_java_cmd, self.__spark, self.__master, spark_args, classname, path_jar,
                     java_args, shell_out_log, shell_out_err)
                 p.shell(cmd)
-                submission_id = None  # TODO read_cli_output(cmd)
+                results = p.results
+                number_of_results = len(results)
+
+                # Check the g5k command's return code
+                if number_of_results != 1:
+                    print(f"WARNING: spark-submit command on G5k return {number_of_results} results: {results}")
+
+                if number_of_results == 0:
+                    raise Exception("Spark-submit command on G5k did not return any results!")
+
+                if number_of_results > 0:
+                    return_code = results[0].rc
+                    if return_code != 0:
+                        raise Exception(
+                            f"Spark application's return code {return_code} is not 0. Check error log, because an exception might have occurred.")
+
+                # Remove the working directory
+                print("Removing working directory of the Spark application.")
                 os.system("rm -rf {0}work".format(self.__spark))
-                return submission_id
+
+                if path_metrics_csv is None:
+                    raise Exception("Metrics CSV path is None.")
+
+                # Download metrics csv from spark
+                print("Downloading metrics CSV from G5k.")
+                p.fetch(src=path_metrics_csv, dest=path_metrics_csv)
+
+                print(f"Returning metrics CSV local path: {path_metrics_csv}")
+                return path_metrics_csv
             except Exception as e:
                 print(e)
+                return None
             finally:
                 p.fetch(src=path_log, dest="~")
                 p.fetch(src=path_err, dest="~")
-        return None
 
     @property
     def _shell_set_java_cmd(self):
         return ("JAVA_HOME={0} ".format(self.__java)) if self.__isSetJava else ""
-
-    def is_finished(self, submission_id: str) -> bool:
-        with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-            cmd = "{0}{1}bin/spark-submit --status {2} --master spark://{3}:7077".format(self._shell_set_java_cmd,
-                                                                                         self.__spark, submission_id,
-                                                                                         self.__master)
-            p.shell(cmd)
-            status_output = None  # TODO read_cli_output(cmd)...
-            return SparkSubmit._is_finished(status_output)

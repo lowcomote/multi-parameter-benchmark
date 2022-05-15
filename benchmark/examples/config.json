@@ -1,7 +1,9 @@
 {
   "benchmark_config": {
     "measurement_rounds": 1,
-    "warmup_rounds": 42
+    "warmup_rounds": 42,
+    "application_metrics_csv_param_name": "metrics_csv",
+    "application_metrics_csv_param_value": "~/application_metrics.csv"
   },
   "cluster_config": {
     "dummy_param": "hello"
