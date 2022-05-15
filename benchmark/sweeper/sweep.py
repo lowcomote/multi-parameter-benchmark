@@ -67,7 +67,7 @@ class Sweeper:
         self.sweeper.done(config)
 
     def skip(self, config):
-       self.sweeper.skip(config)
+        self.sweeper.skip(config)
 
     def _find_best(self, scores: dict, starting_with: List[str], lower: bool = True):
         '''
@@ -104,11 +104,13 @@ class Sweeper:
 
     def get_next(self):
         if self.__remaining_train == 0:
-            best = self._find_best(self.__scores, self.__selected) # Find best sequence of argument, starting with already selected ones
-            self.__selected.append(best(self.__current_parameter_index)) # Add the new config value to the selected ones
-            self.__current_parameter_index = self.__current_parameter_index + 1 # Increase the index of the focused param
+            best = self._find_best(self.__scores,
+                                   self.__selected)  # Find best sequence of argument, starting with already selected ones
+            self.__selected.append(
+                best(self.__current_parameter_index))  # Add the new config value to the selected ones
+            self.__current_parameter_index = self.__current_parameter_index + 1  # Increase the index of the focused param
             self.__not_scored = self._all_start_with(self.__not_scored, self.__selected)
-            self.__remaining_train = self.__train # Restart the maximal number of train
+            self.__remaining_train = self.__train  # Restart the maximal number of train
             if len(self.__not_scored) != 0:
                 return self.get_next()
             else:
