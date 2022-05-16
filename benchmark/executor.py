@@ -31,6 +31,21 @@ ALGORITHM:
 8. Return the best configuration, the corresponding metrics values AND the whole metrics results: <config - summarized metrics>
 """
 
+def submit_application_to_cluster(spark_submit: SparkSubmit, spark_config: SparkConfig, spark_args: dict,
+                                  cli_arguments: dict, sweeper: Sweeper):
+    csv_path = spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
+                                            classname=spark_config.application_classname,
+                                            spark_args=spark_args, java_args=cli_arguments,
+                                            path_metrics_csv=cli_arguments[metrics_csv_param_name])
+
+    # If the application throws an exception, then mark the config as erroneous
+    # how to check if the app threw an exception?
+    exception_occurred = csv_path is None
+    if exception_occurred:
+        print(f"Parametrization ({log_arguments}) finished with error.")
+        sweeper.skip(application_configuration)
+    return csv_path
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -115,7 +130,7 @@ if __name__ == "__main__":
     # setup sweeper
     # Is train = rerun the application N times with the same config? If not, then we shall repeat the spark_submit N times and take the avg of the results?
     print("Starting the parametrization provider.")
-    sweeper = Sweeper(parameters.parameters, remove_workdir=True, train=10)
+    sweeper: Sweeper = Sweeper(parameters.parameters, remove_workdir=True, train=10)
     application_configuration = sweeper.get_next()
     has_next = application_configuration is not None
 
@@ -127,59 +142,60 @@ if __name__ == "__main__":
         log_arguments = ToCsvConfigTransformer(application_configuration).transform()
         print(f"Deploying spark application with parameters: {log_arguments}")
 
-        # TODO Do we want to run the application N times with the same parametrization? If so, where do we execute the warmup and the benchmark rounds?
-        # (The corresponding config parameters are in BenchmarkConfig.warmup_rounds and measurement_rounds.)
-        # Yes, we should do it, but do not forget to save it (step 5) and avoid reading the earlier results from the CSV twice (--> delete the CSVs, before processing them).
-
-        # 2. Submit the application to the cluster with these parameters
+        # Setup parameters
         if metrics_csv_param_name is not None:
             cli_arguments[metrics_csv_param_name] = path_metrics_csv
         spark_args = {"deploy-mode": "client"}  # block spark-submit until the application finishes
-        csv_path = spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
-                                                classname=spark_config.application_classname,
-                                                spark_args=spark_args, java_args=cli_arguments,
-                                                path_metrics_csv=cli_arguments[metrics_csv_param_name])
 
-        # If the application throws an exception, then mark the config as erroneous
-        # how to check if the app threw an exception?
-        exception_occurred = csv_path is None
-        if exception_occurred:
-            print(f"Parametrization ({log_arguments}) finished with error.")
-            sweeper.skip(application_configuration)
-            continue
+        # 2. Warmup rounds: submit the application to the cluster, but discard the results
+        for iteration in range(benchmark_config.warmup_rounds):
+            print(f"{iteration}. warmup round of {log_arguments}")
+            submit_application_to_cluster(spark_submit, spark_config, spark_args, cli_arguments, sweeper)
 
-        '''    
-        3. [partially done] When the application finishes, we collect the logs and the CSVs with the metrics
-            Where to look for the CSVs?
-                - download from g5k..
-            What is the structure of the CSV?
-                - header: configuration, metric_name, metric_value
-                - example: 
-                    "param1=v1,param2=v2 ... paramn=vn", "[cpu(op),memory(GB),time(ms)]", "[r1, r2, r3]"
-                    ...
-                
-                - header: metric
-                - example:
-        
-            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[16732, 2162, 399]"
-            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[111232, 2162, 399]"
-            "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[1132612, 2162, 399]"
-            We run the measurments n times, we release the csv, and calculate the avg for this specific configuration
-        '''
+        # 2. Benchmark rounds: submit the application to the cluster, but save the results
+        finished_with_error = False
+        for iteration in range(benchmark_config.measurement_rounds):
+            print(f"{iteration}. benchmark round of {log_arguments}")
+            csv_path = submit_application_to_cluster(spark_submit, spark_config, spark_args, cli_arguments, sweeper)
 
-        # 3. Collect the CSVs from the cluster
-        print("Reading metrics from CSV.")
-        csv_reader = CsvReader(csv_path)
+            if csv_path is None:
+                finished_with_error = True
+                break
 
-        # 4. Get metrics from the CSVs
-        csv_reader.read()
-        metric_name = csv_reader.get_metric_name()
-        metric = csv_reader.get_summarized_metric()
+            '''    
+            3. [done] When the application finishes, we collect the logs and the CSVs with the metrics
+                Where to look for the CSVs?
+                    - download from g5k..
+                What is the structure of the CSV?
+                    - header: configuration, metric_name, metric_value
+                    - example: 
+                        "param1=v1,param2=v2 ... paramn=vn", "[cpu(op),memory(GB),time(ms)]", "[r1, r2, r3]"
+                        ...
+                    
+                    - header: metric
+                    - example:
+            
+                "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[16732, 2162, 399]"
+                "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[111232, 2162, 399]"
+                "param1=1,param2=1 ... paramn=1", "[cpu(op),memory(GB),time(ms)]", "[1132612, 2162, 399]"
+                We run the measurments n times, we release the csv, and calculate the avg for this specific configuration
+            '''
 
-        # 5. Save the metrics + the parametrization in the ParamSweeper
-        print(f"Saving metric ({metric}) to parametrization ({log_arguments}).")
-        sweeper.score(application_configuration, metric)
-        sweeper.done(application_configuration)
+            # 3. Collect the CSVs from the cluster
+            print("Reading metrics from CSV.")
+            csv_reader = CsvReader(csv_path)
+
+            # 4. Get metrics from the CSVs
+            csv_reader.read()
+            metric_name = csv_reader.get_metric_name()
+            metric = csv_reader.get_summarized_metric()
+
+            # 5. Save the metrics + the parametrization in the ParamSweeper
+            print(f"Saving metric ({metric}) to parametrization ({log_arguments}).")
+            sweeper.score(application_configuration, metric)
+
+        if not finished_with_error:
+            sweeper.done(application_configuration)
 
         # 6. Get the next parametrization
         application_configuration = sweeper.get_next()
