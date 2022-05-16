@@ -1,5 +1,6 @@
-import scala.annotation.tailrec
+import csv.{CSVWriter, CliParamsSerializer}
 
+import scala.annotation.tailrec
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.storage.StorageLevel
@@ -10,6 +11,7 @@ object Main {
   var storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
   var partition: Int = 4
   var replicate: Int = 1
+  var csvWriter: csv.CSVWriter = _
 
   @tailrec
   def parseArgs(args: List[String]): Unit = {
@@ -28,6 +30,10 @@ object Main {
       }
       case "-replicate" :: arg :: rest => {
         replicate = arg.toInt
+        parseArgs(rest)
+      }
+      case "-metricsCsv" :: arg :: rest => {
+        csvWriter = new CSVWriter(arg)
         parseArgs(rest)
       }
       case _ :: rest => {
@@ -57,17 +63,35 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
+    // initialize spark
     val spark = context
     parseArgs(args.toList)
-    val t0 = System.nanoTime()
-    val m0 = (runtime.totalMemory - runtime.freeMemory) / mb
-    val file: RDD[String] = nFile(filename, replicate, spark, partition)
-    val res = file.flatMap(line => line.split(" ")).map(word => (word.replaceAll("[-+.^:,;)(_]", ""), 1)).reduceByKey(_ + _).sortBy(e => e._2, ascending = false).collect()
-    val t1 = System.nanoTime()
-    val m1 = (runtime.totalMemory - runtime.freeMemory) / mb
-    println("Used memory = " + (m1 - m0) + " mb")
-    println("Computation time = " + (t1 - t0) / 1e6 + " ms")
-    println(res(0))
+    val cliParams = CliParamsSerializer.serialize(args)
+
+    // initialize CSV writer
+    csvWriter.createCsv()
+
+    for (i <- 1 to 3) {
+      val t0 = System.nanoTime()
+      val m0 = (runtime.totalMemory - runtime.freeMemory) / mb
+      val file: RDD[String] = nFile(filename, replicate, spark, partition)
+
+      // do the count word
+      val res = file.flatMap(line => line.split(" ")).map(word => (word.replaceAll("[-+.^:,;)(_]", ""), 1)).reduceByKey(_ + _).sortBy(e => e._2, ascending = false).collect()
+      val t1 = System.nanoTime()
+      val m1 = (runtime.totalMemory - runtime.freeMemory) / mb
+
+      val computationTime: Long = Math.round((t1 - t0) / 1e6)
+      println("Computation time = %d ms".format(computationTime))
+
+      val usedMemory: Long = m1 - m0
+      println("Used memory = %d mb".format(usedMemory))
+
+      println(res(0))
+
+      // save metrics
+      csvWriter.writeToCsv(cliParams, "[cpu(ms),memory(MB)]", "[%d,%d]".format(computationTime, usedMemory))
+    }
   }
 
 }
