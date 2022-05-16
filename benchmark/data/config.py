@@ -38,7 +38,7 @@ class SparkConfig:
 
 @dataclass
 class Configuration:
-    cluster_config: G5kClusterConfig
+    cluster_config: Optional[G5kClusterConfig]
     spark_config: SparkConfig
     benchmark_config: BenchmarkConfig
 

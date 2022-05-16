@@ -6,6 +6,14 @@
     "application_metrics_csv_param_value": "~/application_metrics.csv"
   },
   "cluster_config": {
-    "dummy_param": "hello"
+    "site": "",
+    "cluster": "",
+    "worker": 1
+  },
+  "spark_config": {
+    "spark_home": "",
+    "java_home": "",
+    "application_jar_path": "",
+    "application_classname": ""
   }
 }
