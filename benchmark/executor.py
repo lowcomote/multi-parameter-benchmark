@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
         # TODO Do we want to run the application N times with the same parametrization? If so, where do we execute the warmup and the benchmark rounds?
         # (The corresponding config parameters are in BenchmarkConfig.warmup_rounds and measurement_rounds.)
-        # Yes, we should do it, but do not forget to save it (step 6) and avoid reading the earlier results from the CSV twice (--> delete the CSVs, before processing them).
+        # Yes, we should do it, but do not forget to save it (step 5) and avoid reading the earlier results from the CSV twice (--> delete the CSVs, before processing them).
 
         # 2. Submit the application to the cluster with these parameters
         if metrics_csv_param_name is not None:
