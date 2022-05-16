@@ -75,6 +75,10 @@ if __name__ == "__main__":
     metrics_csv_param_name = benchmark_config.application_metrics_csv_param_name
     path_metrics_csv = benchmark_config.application_metrics_csv_path
 
+    if metrics_csv_param_name is not None and path_metrics_csv is None:
+        raise Exception(
+            "Set \"application_metrics_csv_path\" in the BenchmarkConfig, because \"application_metrics_csv_param_name\" is set.")
+
     '''
     3. [done] We submit the application to the spark cluster with these parameters...
     G5kClusterReserver:
@@ -128,12 +132,13 @@ if __name__ == "__main__":
         # Yes, we should do it, but do not forget to save it (step 6) and avoid reading the earlier results from the CSV twice (--> delete the CSVs, before processing them).
 
         # 2. Submit the application to the cluster with these parameters
-        cli_arguments[metrics_csv_param_name] = path_metrics_csv
+        if metrics_csv_param_name is not None:
+            cli_arguments[metrics_csv_param_name] = path_metrics_csv
         spark_args = {"deploy-mode": "client"}  # block spark-submit until the application finishes
         csv_path = spark_submit.submit_with_log(path_jar=spark_config.application_jar_path,
                                                 classname=spark_config.application_classname,
                                                 spark_args=spark_args, java_args=cli_arguments,
-                                                path_metrics_csv=path_metrics_csv)
+                                                path_metrics_csv=cli_arguments[metrics_csv_param_name])
 
         # If the application throws an exception, then mark the config as erroneous
         # how to check if the app threw an exception?

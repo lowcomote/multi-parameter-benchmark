@@ -9,8 +9,8 @@ class BenchmarkConfig:
     warmup_rounds: int
     measurement_rounds: int
     all_in_one_benchmark_results_csv_path: str
-    application_metrics_csv_param_name: str
-    application_metrics_csv_path: str
+    application_metrics_csv_param_name: Optional[str]
+    application_metrics_csv_path: Optional[str]
 
 
 @dataclass
@@ -60,7 +60,7 @@ class ApplicationParameter:
     name: str
     priority: int
     values: List[str]
-    constraints: List[ApplicationParameterConstraint]
+    constraints: Optional[List[ApplicationParameterConstraint]]
 
 
 @dataclass
