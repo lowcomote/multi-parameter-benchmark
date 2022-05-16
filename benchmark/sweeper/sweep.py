@@ -14,7 +14,7 @@ import shutil, os, random
 class Sweeper:
     def __init__(self, parameters: List[ApplicationParameter], train: int, remove_workdir: bool = False):
         # setup workdir
-        workdir_path = str(Path("../deploy/sweeper_workdir"))
+        workdir_path = str(Path("./sweeper_workdir"))
         '''
         Parameter configurations are persisted in the workdir. Remove the workdir if you want to restart the 
         combinations again. See https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py#L197
