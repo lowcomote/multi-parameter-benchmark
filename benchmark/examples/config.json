@@ -1,7 +1,7 @@
 {
   "benchmark_config": {
+    "warmup_rounds": 1,
     "measurement_rounds": 1,
-    "warmup_rounds": 42,
     "application_metrics_csv_param_name": "metricsCsv",
     "application_metrics_csv_param_value": "~/application_metrics.csv"
   },
