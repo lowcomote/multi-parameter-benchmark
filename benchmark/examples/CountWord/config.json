@@ -1,0 +1,14 @@
+{
+  "benchmark_config": {
+    "measurement_rounds": 1,
+    "warmup_rounds": 42,
+    "application_metrics_csv_param_name": "metricsCsv",
+    "application_metrics_csv_param_value": "~/application_metrics.csv"
+  },
+  "spark_config": {
+    "spark_home": "/home/benjo/spark",
+    "java_home": "/usr/lib/jvm/java-1.11.0-openjdk-amd64/",
+    "application_jar_path": "/home/benjo/spark/application/ParametrizableCountWord.jar",
+    "application_classname": "Main"
+  }
+}

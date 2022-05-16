@@ -1,0 +1,47 @@
+{
+  "parameters": [
+    {
+      "name": "storageLevel",
+      "priority": 1,
+      "values": [
+        "NONE",
+        "DISK_ONLY",
+        "MEMORY_ONLY",
+        "MEMORY_ONLY_SER",
+        "MEMORY_AND_DISK",
+        "MEMORY_AND_DISK_SER"
+      ]
+    },
+    {
+      "name": "partition",
+      "priority": 2,
+      "values": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "replicate",
+      "priority": 3,
+      "values": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "filename",
+      "priority": 4,
+      "values": [
+        "/home/benjo/spark/application/bible.txt"
+      ]
+    },
+    {
+      "name": "metricsCsv",
+      "priority": 5,
+      "values": [
+        "/home/benjo/application_metrics.csv"
+      ]
+    }
+  ]
+}
