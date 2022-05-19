@@ -1,6 +1,6 @@
 from execo_engine import ParamSweeper, sweep
-from data.config import ApplicationParameter
-from data.metric import Metric
+from benchmark.data.config import ApplicationParameter
+from benchmark.data.metric import Metric
 from typing import List
 from pathlib import Path
 import shutil, os, random
@@ -119,6 +119,9 @@ class Sweeper:
             res = random.choice(self.__not_scored)
             self.__remaining_train = self.__remaining_train - 1
             return res
+    
+    def has_next(self):
+        return not self.__not_scored
 
     def score(self, config, score):
         if config not in self.__scores:
@@ -139,3 +142,6 @@ class Sweeper:
 
     def best(self):
         return self.__selected
+
+    def __str__(self):
+        return str(self.__parameters_dict)
