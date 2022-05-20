@@ -1,6 +1,6 @@
 from execo_engine import ParamSweeper, sweep
-from benchmark.data.config import ApplicationParameter
-from benchmark.data.metric import Metric
+from data.config import ApplicationParameter
+from data.metric import Metric
 from typing import List
 from pathlib import Path
 import shutil, os, random
@@ -119,7 +119,7 @@ class Sweeper:
             res = random.choice(self.__not_scored)
             self.__remaining_train = self.__remaining_train - 1
             return res
-    
+
     def has_next(self):
         return not self.__not_scored
 
@@ -130,7 +130,17 @@ class Sweeper:
 
     def get_score(self, config) -> Metric:
         if config in self.__scores:
-            return sum(self.__scores[config]) / len(self.__scores[config])
+            metrics = self.__scores[config]
+            length = len(metrics)
+
+            if length == 0:
+                raise KeyError(f"No metric was recorded for the config: {config}")
+
+            sum = metrics[0]
+            for metric in metrics[1:]:
+                sum = sum + metric
+
+            return sum / length
         else:
             raise KeyError(f'The config {config} have not been tested yet.')
 
