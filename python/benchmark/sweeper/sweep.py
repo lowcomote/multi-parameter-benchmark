@@ -1,6 +1,6 @@
 from execo_engine import ParamSweeper, sweep
-from data.config import ApplicationParameter
-from data.metric import Metric
+from benchmark.data.config import ApplicationParameter
+from benchmark.data.metric import Metric
 from typing import List
 from pathlib import Path
 import shutil, os, random

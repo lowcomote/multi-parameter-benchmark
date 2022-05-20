@@ -1,6 +1,6 @@
-from sweeper.sweep import Sweeper
-from data.config import ApplicationParameter
-from data.metric import LongMetric
+from benchmark.sweeper.sweep import Sweeper
+from benchmark.data.config import ApplicationParameter
+from benchmark.data.metric import LongMetric
 
 def bench(config):
     value = int(config['prime']) + int(config['odd']) + int(config['even']) + int(config['fibo'])

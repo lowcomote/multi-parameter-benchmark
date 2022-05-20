@@ -1,0 +1,2 @@
+enoslib==7.2.1
+marshmallow_dataclass==8.5.8

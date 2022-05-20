@@ -1,4 +1,0 @@
-enoslib==7.2.1
-execo==2.6.8
-marshmallow_dataclass==8.5.3
-marsmallow_enum==1.5.1

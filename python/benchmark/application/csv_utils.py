@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 import csv
 from typing import List
-from ..data.metric import Metric
-from ..application.config_transformer import ToCsvConfigTransformer
+from benchmark.data.metric import Metric
+from benchmark.application.config_transformer import ToCsvConfigTransformer
 
 CSV_HEADERS = ["configuration", "metric_name", "metric_value"]
 

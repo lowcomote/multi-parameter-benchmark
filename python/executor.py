@@ -1,11 +1,11 @@
 import argparse
 from pathlib import Path
-from data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig, BenchmarkConfig
-from sweeper.sweep import Sweeper
-from application.config_transformer import ToCliConfigTransformer, ToCsvConfigTransformer
-from deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, G5kClusterReserver, \
+from benchmark.data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig, BenchmarkConfig
+from benchmark.sweeper.sweep import Sweeper
+from benchmark.application.config_transformer import ToCliConfigTransformer, ToCsvConfigTransformer
+from benchmark.deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, G5kClusterReserver, \
     G5kSparkSubmit
-from application.csv_utils import CsvReader, CsvWriter
+from benchmark.application.csv_utils import CsvReader, CsvWriter
 
 """
 INPUT:
