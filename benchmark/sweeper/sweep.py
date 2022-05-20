@@ -12,6 +12,7 @@ import shutil, os, random
 # and some monte carlo tree-like properties and features
 
 class Sweeper:
+
     def __init__(self, parameters: List[ApplicationParameter], train: int, remove_workdir: bool = False):
         # setup workdir
         workdir_path = str(Path("./sweeper_workdir"))
@@ -61,8 +62,8 @@ class Sweeper:
 
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
-        # TODO must be tested
-        return map(lambda ap: ap.name, parameters.sort(key = lambda ap: ap.priority))
+        parameters.sort(key = lambda ap: ap.priority)
+        return map(lambda ap: ap.name, parameters)
 
     @staticmethod
     def _to_parameters_dict(parameters: List[ApplicationParameter]):
@@ -78,41 +79,45 @@ class Sweeper:
     def skip(self, config):
         self.sweeper.skip(config)
 
+    @staticmethod
+    def _start_with(sequence: dict, start: dict):
+        for key in start:
+            if not key in sequence:
+                return False
+            if sequence[key] != start[key]:
+                return False
+        return True 
+
     def _find_best(self, scores: dict, starting_with: dict, lower: bool = True):
         '''
         scores: dict: dict -> Metric 
         starting_with: dict
         The returned solution must start with starting_with
-        '''
-        # types must be rechecked here.
-        # scores is dict that matches a config with a Metric
-        # TODO the function must be rewritten
-        pass
-        # best_config = None
-        # best_score = None
-        # for config in scores:
-        #     score = self.get_score(config)
-        #     if best_config is None:
-        #         best_config = config
-        #         best_score = score
-        #     elif lower:
-        #         if score.lt(best_score):
-        #             best_config = config
-        #             best_score = score
-        #     else:
-        #         if score.gt(best_score):
-        #             best_config = config
-        #             best_score = score
-        # return best_config
+        ''' 
+        best_config = None
+        best_score = None
+        for config in scores:
+            score = self.get_score(config)
+            if self._start_with(config, starting_with):
+                if best_config is None:
+                    best_config = config
+                    best_score = score
+                elif lower:
+                    if score.lt(best_score):
+                        best_config = config
+                        best_score = score
+                else:
+                    if score.gt(best_score):
+                        best_config = config
+                        best_score = score
+        return best_config
 
     @staticmethod
-    def _all_start_with(sequences: List[dict], start: dict):
+    def _all_start_with(self, sequences: List[dict], start: dict):
         '''
         return the sequences which starts with start
         '''
-        # TODO [Jolan] remove from 'sequences' all dict that does not match with 'start'
-        # ie, all (key,value) in `start` must be present in the filtered `sequences` list
-        pass
+        return filter(lambda seq: self._start_with(seq, start), sequences)
 
     def _get_next_key(self):
         '''
@@ -127,7 +132,7 @@ class Sweeper:
             best = self._find_best(self.__scores, self.__selected)  # Find best sequence of argument, starting with already selected ones
             self.__selected[self.__current_parameter_key] = best[self.__current_parameter_key]  # Add the new config value to the selected ones
             self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
-            self.__not_scored = self._all_start_with(self.__not_scored, self.__selected)
+            self.__not_scored = self._all_start_with(self, self.__not_scored, self.__selected)
             self.__remaining_train = self.__train  # Restart the maximal number of train
             
             if len(self.__not_scored) != 0:
