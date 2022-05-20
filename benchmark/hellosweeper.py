@@ -1,7 +1,6 @@
-from sweep import Sweeper
+from sweeper.sweep import Sweeper
 from data.config import ApplicationParameter
 from data.metric import LongMetric
-
 
 def bench(config):
     value = int(config['prime']) + int(config['odd']) + int(config['even']) + int(config['fibo'])
@@ -20,6 +19,6 @@ print(sweeper)
 while sweeper.has_next:
     config = sweeper.get_next()
     sweeper.score(config, bench(config))
-    print(f"current best {sweeper.best()}")
+    # print(f"current best {sweeper.best()}")
     # sweeper.done(config)
 #     print("OK")

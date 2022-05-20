@@ -107,7 +107,7 @@ class Sweeper:
             best = self._find_best(self.__scores,
                                    self.__selected)  # Find best sequence of argument, starting with already selected ones
             self.__selected.append(
-                best(self.__current_parameter_index))  # Add the new config value to the selected ones
+                best[self.__current_parameter_index])  # Add the new config value to the selected ones
             self.__current_parameter_index = self.__current_parameter_index + 1  # Increase the index of the focused param
             self.__not_scored = self._all_start_with(self.__not_scored, self.__selected)
             self.__remaining_train = self.__train  # Restart the maximal number of train
@@ -154,4 +154,9 @@ class Sweeper:
         return self.__selected
 
     def __str__(self):
-        return str(self.__parameters_dict)
+        res = "Parameters fields: " + str(self.__parameters_dict) + "\n"
+        res += "Current scored configurations: " + str(self.__scores) + "\n"
+        res += "Number of not-scored configurations: " + str(len(self.__not_scored))
+        res += "Current best configuration: " + str(self.__selected)
+        return res
+
