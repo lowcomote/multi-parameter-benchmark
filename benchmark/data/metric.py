@@ -90,7 +90,7 @@ class LongMetric(Metric):
         return LongMetric(self._value // num)
 
     def __str__(self) -> str:
-        return f"[{self.get_value}]"
+        return f"[{self.get_value()}]"
 
     def get_value(self):
         return self._value
