@@ -11,19 +11,23 @@ import json
 class Metric(ABC):
 
     @abstractmethod
-    def gt(self, other: Metric) -> bool:
+    def __gt__(self, other: Metric) -> bool:
+        '''Return true if self > other'''
         pass
 
     @abstractmethod
-    def gteq(self, other: Metric) -> bool:
+    def __ge__(self, other: Metric) -> bool:
+        '''Return true if self >= other'''
         pass
 
     @abstractmethod
-    def lt(self, other: Metric) -> bool:
+    def __lt__(self, other: Metric) -> bool: 
+        '''Return true if self < other'''
         pass
 
     @abstractmethod
-    def lteq(self, other: Metric) -> bool:
+    def __le__(self, other: Metric) -> bool:
+        '''Return true if self <= other'''
         pass
 
     @abstractmethod
@@ -68,17 +72,21 @@ class LongMetric(Metric):
         super().__init__()
         self._value = value
 
-    def gt(self, other: Metric) -> bool:
-        return True  # TODO
+    def __gt__(self, other: Metric) -> bool:
+        '''Return true if self > other'''
+        return self.get_value() > other.get_value()
 
-    def gteq(self, other: Metric) -> bool:
-        return True  # TODO
+    def __ge__(self, other: Metric) -> bool:
+        '''Return true if self >= other'''
+        return self.get_value() >= other.get_value()
 
-    def lt(self, other: Metric) -> bool:
-        return False  # TODO
+    def __lt__(self, other: Metric) -> bool: 
+        '''Return true if self < other'''
+        return self.get_value() < other.get_value()
 
-    def lteq(self, other: Metric) -> bool:
-        return False  # TODO
+    def __le__(self, other: Metric) -> bool:
+        '''Return true if self <= other'''
+        return self.get_value() <= other.get_value()
 
     def __add__(self, other: LongMetric) -> LongMetric:
         return LongMetric(self._value + other._value)
@@ -104,17 +112,21 @@ class Tuple2Metric(Metric):
         self._v1 = v1
         self._v2 = v2
 
-    def gt(self, other: Metric) -> bool:
-        return True  # TODO
+    def __gt__(self, other: Metric) -> bool:
+        '''Return true if self > other'''
+        pass
 
-    def gteq(self, other: Metric) -> bool:
-        return True  # TODO
+    def __ge__(self, other: Metric) -> bool:
+        '''Return true if self >= other'''
+        pass
 
-    def lt(self, other: Metric) -> bool:
-        return False  # TODO
+    def __lt__(self, other: Metric) -> bool: 
+        '''Return true if self < other'''
+        pass
 
-    def lteq(self, other: Metric) -> bool:
-        return False  # TODO
+    def __le__(self, other: Metric) -> bool:
+        '''Return true if self <= other'''
+        pass
 
     def __add__(self, other: Tuple2Metric) -> Tuple2Metric:
         return Tuple2Metric(self._v1 + other._v1, self._v2 + other._v2)
@@ -142,17 +154,21 @@ class Tuple3Metric(Metric):
         self._v2 = v2
         self._v3 = v3
 
-    def gt(self, other: Metric) -> bool:
-        return True  # TODO
+    def __gt__(self, other: Metric) -> bool:
+        '''Return true if self > other'''
+        pass
 
-    def gteq(self, other: Metric) -> bool:
-        return True  # TODO
+    def __ge__(self, other: Metric) -> bool:
+        '''Return true if self >= other'''
+        pass
 
-    def lt(self, other: Metric) -> bool:
-        return False  # TODO
+    def __lt__(self, other: Metric) -> bool: 
+        '''Return true if self < other'''
+        pass
 
-    def lteq(self, other: Metric) -> bool:
-        return False  # TODO
+    def __le__(self, other: Metric) -> bool:
+        '''Return true if self <= other'''
+        pass
 
     def __add__(self, other: Tuple3Metric) -> Tuple3Metric:
         return Tuple3Metric(self._v1 + other._v1, self._v2 + other._v2, self._v3 + other._v3)

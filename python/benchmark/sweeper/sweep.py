@@ -1,19 +1,20 @@
+from queue import Empty
 from execo_engine import ParamSweeper, sweep
 from benchmark.data.config import ApplicationParameter
 from benchmark.data.metric import Metric
-from typing import List
+from typing import Hashable, List
 from pathlib import Path
 import shutil, os, random
-
-
-# TODO : extend execo_engine.ParamSweeper
+from execo_engine import HashableDict
 # https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py
 # with tree + heuristic mechanism
 # and some monte carlo tree-like properties and features
 
 class Sweeper:
 
-    def __init__(self, parameters: List[ApplicationParameter], train: int, remove_workdir: bool = False):
+    def __init__(self, parameters: List[ApplicationParameter], train: int, lower = True, remove_workdir: bool = False):
+        self.__lower = lower
+
         # setup workdir
         workdir_path = str(Path("./sweeper_workdir"))
         '''
@@ -47,7 +48,8 @@ class Sweeper:
         self.__current_parameter_key = self._get_next_key()
 
         # the concrete value bindings (configuration) for each parameter, that produce the best metric
-        self.__selected = dict()
+        # self.__selected = dict()
+        self.__selected = HashableDict()
 
     # TODO
     # @staticmethod
@@ -63,7 +65,7 @@ class Sweeper:
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
         parameters.sort(key = lambda ap: ap.priority)
-        return map(lambda ap: ap.name, parameters)
+        return list(map(lambda ap: ap.name, parameters))
 
     @staticmethod
     def _to_parameters_dict(parameters: List[ApplicationParameter]):
@@ -88,7 +90,7 @@ class Sweeper:
                 return False
         return True 
 
-    def _find_best(self, scores: dict, starting_with: dict, lower: bool = True):
+    def _find_best(self, scores: dict, starting_with: dict):
         '''
         scores: dict: dict -> Metric 
         starting_with: dict
@@ -102,12 +104,12 @@ class Sweeper:
                 if best_config is None:
                     best_config = config
                     best_score = score
-                elif lower:
-                    if score.lt(best_score):
+                elif self.__lower:
+                    if score < best_score:
                         best_config = config
                         best_score = score
                 else:
-                    if score.gt(best_score):
+                    if score > best_score:
                         best_config = config
                         best_score = score
         return best_config
@@ -117,7 +119,7 @@ class Sweeper:
         '''
         return the sequences which starts with start
         '''
-        return filter(lambda seq: self._start_with(seq, start), sequences)
+        return list(filter(lambda seq: self._start_with(seq, start), sequences))
 
     def _get_next_key(self):
         '''
@@ -128,24 +130,28 @@ class Sweeper:
         return res
 
     def get_next(self):
+        if self.__not_scored is Empty:
+            return None
         if self.__remaining_train == 0:
+            print("Train reached 0")
             best = self._find_best(self.__scores, self.__selected)  # Find best sequence of argument, starting with already selected ones
+            print("the current evaluated best is",best)
+            print("the current key we lock", self.__current_parameter_key)
             self.__selected[self.__current_parameter_key] = best[self.__current_parameter_key]  # Add the new config value to the selected ones
-            self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
             self.__not_scored = self._all_start_with(self, self.__not_scored, self.__selected)
-            self.__remaining_train = self.__train  # Restart the maximal number of train
-            
             if len(self.__not_scored) != 0:
+                self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
+                print("New key to lock is", self.__current_parameter_key)
+                self.__remaining_train = self.__train  # Restart the maximal number of train
+                print(len(self.__not_scored), "config still must be tested")    
                 return self.get_next()
-            else:
-                return self.__selected
         else:
             res = random.choice(self.__not_scored)
             self.__remaining_train = self.__remaining_train - 1
             return res
 
     def has_next(self):
-        return not self.__not_scored
+        return len(self.__not_scored) != 0
 
     def score(self, config, score):
         if config not in self.__scores:
@@ -176,6 +182,9 @@ class Sweeper:
 
     def best(self):
         return self.__selected
+    
+    def public_scores(self):
+        return self.__scores
 
     def __str__(self):
         res = "Parameters fields: " + str(self.__parameters_dict) + "\n"
