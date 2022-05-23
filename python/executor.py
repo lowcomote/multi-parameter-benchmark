@@ -3,7 +3,8 @@ from pathlib import Path
 from benchmark.data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig, BenchmarkConfig
 from benchmark.sweeper.sweep import Sweeper
 from benchmark.application.config_transformer import ToCliConfigTransformer, ToCsvConfigTransformer
-from benchmark.deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, G5kClusterReserver, \
+from benchmark.deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, \
+    G5kClusterReserver, \
     G5kSparkSubmit
 from benchmark.application.csv_utils import CsvReader, CsvWriter
 
@@ -113,12 +114,12 @@ class BenchmarkExecutor:
             print(f"Exception occurred: {err}")
 
     def _execute_workflow(self):
-        application_configuration = self.sweeper.get_next()
-        has_next = application_configuration is not None
-
         metric_name = None  # used in CSV Writer to print the metric name
-        while has_next:
-            # In each loop iteration:
+        while self.sweeper.has_next():
+            # In each iteration of the loop:
+            # 0. get th next parametrization
+            application_configuration = self.sweeper.get_next()
+
             # 1. Serialize the arguments received from the param sweeper
             cli_arguments = ToCliConfigTransformer(application_configuration).transform()
             log_arguments = ToCsvConfigTransformer(application_configuration).transform()
@@ -158,10 +159,6 @@ class BenchmarkExecutor:
 
             if not finished_with_error:
                 self.sweeper.done(application_configuration)
-
-            # 6. Get the next parametrization
-            application_configuration = self.sweeper.get_next()
-            has_next = application_configuration is not None
 
         print("Benchmark finished for all parameters. Parametrization provider does not return any new configuration.")
 
