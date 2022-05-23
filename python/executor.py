@@ -94,7 +94,8 @@ class BenchmarkExecutor:
     def _setup_sweeper(self):
         # Is train = rerun the application N times with the same config? If not, then we shall repeat the spark_submit N times and take the avg of the results?
         print("Starting the parametrization provider.")
-        self.sweeper: Sweeper = Sweeper(self.application_parameters.parameters, remove_workdir=True, train=10)
+        self.sweeper: Sweeper = Sweeper(application_parameters=self.application_parameters, remove_workdir=True,
+                                        train=10)
 
     def _stop_cluster(self):
         # Undeploy computation platform

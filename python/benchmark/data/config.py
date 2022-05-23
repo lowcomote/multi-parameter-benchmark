@@ -49,10 +49,15 @@ class ConstraintType(Enum):
 
 
 @dataclass
+class ParameterBinding:
+    name: str
+    value: str
+
+
+@dataclass
 class ApplicationParameterConstraint:
-    source: str
-    target: str
-    type: ConstraintType
+    source: ParameterBinding
+    targets: List[ParameterBinding]
 
 
 @dataclass
@@ -60,9 +65,9 @@ class ApplicationParameter:
     name: str
     priority: int
     values: List[str]
-    constraints: Optional[List[ApplicationParameterConstraint]]
 
 
 @dataclass
 class ApplicationParameters:
     parameters: List[ApplicationParameter]
+    constraints: Optional[List[ApplicationParameterConstraint]]

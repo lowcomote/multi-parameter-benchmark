@@ -1,18 +1,21 @@
 from queue import Empty
-from execo_engine import ParamSweeper, sweep
-from benchmark.data.config import ApplicationParameter
+from execo_engine import ParamSweeper, sweep, HashableDict
+from benchmark.data.config import ApplicationParameter, ApplicationParameters, ApplicationParameterConstraint
 from benchmark.data.metric import Metric
-from typing import Hashable, List
+from benchmark.data.constraint_utils import ConstraintUtil
+from typing import List
 from pathlib import Path
 import shutil, os, random
-from execo_engine import HashableDict
+
+
 # https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py
 # with tree + heuristic mechanism
 # and some monte carlo tree-like properties and features
 
 class Sweeper:
 
-    def __init__(self, parameters: List[ApplicationParameter], train: int, lower = True, remove_workdir: bool = False):
+    def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
+                 remove_workdir: bool = False):
         self.__lower = lower
 
         # setup workdir
@@ -25,6 +28,7 @@ class Sweeper:
             shutil.rmtree(workdir_path)
 
         # setup parameter_dict
+        parameters = application_parameters.parameters
         self.__parameters_dict = self._to_parameters_dict(parameters)
         sweeps = sweep(self.__parameters_dict)
         self.sweeper = ParamSweeper(
@@ -40,31 +44,25 @@ class Sweeper:
         self.__train = train  # maximal number of train before picking one configuration for a parameter
         self.__remaining_train = train
         self.__scores = dict()  # keeping a record of current calculated scores
-        self.__not_scored = sweeps
-        # TODO self.__constraints = self._to_parameters_constraint(parameters)
+
+        # apply constraints
+        filtered_after_constraints = sweeps
+        constraints = application_parameters.constraints
+        if constraints is not None:
+            filtered_after_constraints = ConstraintUtil.filter_valid_configs(sweeps, constraints)
+
+        self.__not_scored = filtered_after_constraints
 
         self.__parameters = self._to_list_of_key(parameters)
         self.__parameter_index = 0
         self.__current_parameter_key = self._get_next_key()
 
         # the concrete value bindings (configuration) for each parameter, that produce the best metric
-        # self.__selected = dict()
         self.__selected = HashableDict()
-
-    # TODO
-    # @staticmethod
-    # def _to_parameters_constraint(parameters: List[ApplicationParameter]):
-    #     """ return a set of (str, str, str, str, typeofconstraint) ? (Varname1, value1, varname2, value2, type) """"
-    #     pass
-
-    @staticmethod
-    def _check_constraints(config, constraints):
-        # TODO 
-        pass
 
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
-        parameters.sort(key = lambda ap: ap.priority)
+        parameters.sort(key=lambda ap: ap.priority)
         return list(map(lambda ap: ap.name, parameters))
 
     @staticmethod
@@ -88,14 +86,14 @@ class Sweeper:
                 return False
             if sequence[key] != start[key]:
                 return False
-        return True 
+        return True
 
     def _find_best(self, scores: dict, starting_with: dict):
         '''
         scores: dict: dict -> Metric 
         starting_with: dict
         The returned solution must start with starting_with
-        ''' 
+        '''
         best_config = None
         best_score = None
         for config in scores:
@@ -134,16 +132,18 @@ class Sweeper:
             return None
         if self.__remaining_train == 0:
             print("Train reached 0")
-            best = self._find_best(self.__scores, self.__selected)  # Find best sequence of argument, starting with already selected ones
-            print("the current evaluated best is",best)
+            best = self._find_best(self.__scores,
+                                   self.__selected)  # Find best sequence of argument, starting with already selected ones
+            print("the current evaluated best is", best)
             print("the current key we lock", self.__current_parameter_key)
-            self.__selected[self.__current_parameter_key] = best[self.__current_parameter_key]  # Add the new config value to the selected ones
+            self.__selected[self.__current_parameter_key] = best[
+                self.__current_parameter_key]  # Add the new config value to the selected ones
             self.__not_scored = self._all_start_with(self, self.__not_scored, self.__selected)
             if len(self.__not_scored) != 0:
                 self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
                 print("New key to lock is", self.__current_parameter_key)
                 self.__remaining_train = self.__train  # Restart the maximal number of train
-                print(len(self.__not_scored), "config still must be tested")    
+                print(len(self.__not_scored), "config still must be tested")
                 return self.get_next()
         else:
             res = random.choice(self.__not_scored)
@@ -182,9 +182,6 @@ class Sweeper:
 
     def best(self):
         return self.__selected
-    
-    def public_scores(self):
-        return self.__scores
 
     def __str__(self):
         res = "Parameters fields: " + str(self.__parameters_dict) + "\n"
@@ -192,4 +189,3 @@ class Sweeper:
         res += "Number of not-scored configurations: " + str(len(self.__not_scored)) + "\n"
         res += "Current best configuration: " + str(self.__selected)
         return res
-
