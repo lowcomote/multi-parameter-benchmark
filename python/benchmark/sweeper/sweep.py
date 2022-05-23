@@ -16,7 +16,7 @@ class Sweeper:
 
     def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
                  remove_workdir: bool = False):
-        self.__lower = lower
+        self.__lower = lower 
 
         # setup workdir
         workdir_path = str(Path("./sweeper_workdir"))
@@ -131,8 +131,7 @@ class Sweeper:
         if self.__not_scored == []:
             best = self._find_best(self.__scores,
                                    self.__selected)
-            self.__selected[self.__current_parameter_key] = best[
-                self.__current_parameter_key]
+            self.__selected = best
             return None
         elif self.__remaining_train == 0:
             best = self._find_best(self.__scores,
