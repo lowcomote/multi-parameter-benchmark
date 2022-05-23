@@ -135,28 +135,20 @@ class Sweeper:
                 self.__current_parameter_key]
             return None
         elif self.__remaining_train == 0:
-            print("Train reached 0")
             best = self._find_best(self.__scores,
                                    self.__selected)  # Find best sequence of argument, starting with already selected ones
-            print("the current evaluated best is", best)
-            print("the current key we lock", self.__current_parameter_key)
             self.__selected[self.__current_parameter_key] = best[
                 self.__current_parameter_key]  # Add the new config value to the selected ones
             self.__not_scored = self._all_start_with(self, self.__not_scored, self.__selected)
             if len(self.__not_scored) != 0:
                 self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
-                print("New key to lock is", self.__current_parameter_key)
                 self.__remaining_train = self.__train  # Restart the maximal number of train
-                print(len(self.__not_scored), "config still must be tested")
                 return self.get_next()
         else:
-            try:
-                res = random.choice(self.__not_scored)
-                self.__remaining_train = self.__remaining_train - 1
-                return res
-            except Exception as e:
-                print("Error when trying to get a random value in a list of",len(self.__not_scored),"elements")
-
+            res = random.choice(self.__not_scored)
+            self.__remaining_train = self.__remaining_train - 1
+            return res
+           
     def has_next(self):
         return len(self.__not_scored) != 0
 
