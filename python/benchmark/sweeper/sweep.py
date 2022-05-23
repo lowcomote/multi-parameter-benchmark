@@ -128,9 +128,13 @@ class Sweeper:
         return res
 
     def get_next(self):
-        if self.__not_scored is Empty:
+        if self.__not_scored == []:
+            best = self._find_best(self.__scores,
+                                   self.__selected)
+            self.__selected[self.__current_parameter_key] = best[
+                self.__current_parameter_key]
             return None
-        if self.__remaining_train == 0:
+        elif self.__remaining_train == 0:
             print("Train reached 0")
             best = self._find_best(self.__scores,
                                    self.__selected)  # Find best sequence of argument, starting with already selected ones
@@ -146,9 +150,12 @@ class Sweeper:
                 print(len(self.__not_scored), "config still must be tested")
                 return self.get_next()
         else:
-            res = random.choice(self.__not_scored)
-            self.__remaining_train = self.__remaining_train - 1
-            return res
+            try:
+                res = random.choice(self.__not_scored)
+                self.__remaining_train = self.__remaining_train - 1
+                return res
+            except Exception as e:
+                print("Error when trying to get a random value in a list of",len(self.__not_scored),"elements")
 
     def has_next(self):
         return len(self.__not_scored) != 0
@@ -182,6 +189,10 @@ class Sweeper:
 
     def best(self):
         return self.__selected
+
+    def pub_not_scored(self):
+        return self.__not_scored
+
 
     def __str__(self):
         res = "Parameters fields: " + str(self.__parameters_dict) + "\n"
