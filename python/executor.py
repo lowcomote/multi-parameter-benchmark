@@ -166,12 +166,16 @@ class BenchmarkExecutor:
         # Export benchmark results
         if self.sweeper.has_best():
             # 7. If ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
-            # TODO instead of the sweeper.best() method we need a method which creates a config from the best value bindings
-            # i.e. [1,A,a] -> p1=1,p2=A,p3=a; Because sweeper.__scores store the concrete bindings.
-            best_config = self.sweeper.best()
+            best_config = self.sweeper.best
             best_score = self.sweeper.get_score(best_config)
             print(f"Best score: {best_score}")
             print(f"Best config: {best_config}")
+            print()
+            print(f"Configurations skipped due to an error:")
+            for config in self.sweeper.skipped:
+                print(config)
+                
+            print("Exporting all benchmark results to a file.")
 
             # 8. Export all results to a file (CSV?)
             # Analyze the .csv with R, or external analysis tool

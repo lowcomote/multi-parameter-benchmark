@@ -43,4 +43,4 @@ while config is not None:
     # print(f"current best {sweeper.best()}")
     sweeper.done(config)
     config = sweeper.get_next()
-print("THE BEST IS", sweeper.best(), sweeper.get_score(sweeper.best()))
+print("THE BEST IS", sweeper.best, sweeper.get_score(sweeper.best))

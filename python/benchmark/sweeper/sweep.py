@@ -192,10 +192,15 @@ class Sweeper:
         return self.__state.scores
 
     def has_best(self):
-        return self.best() is not None
+        return self.best is not None
 
+    @property
     def best(self):
         return self.__state.selected
+
+    @property
+    def skipped(self):
+        return self.__state.skipped
 
     def __str__(self):
         state = self.__state
