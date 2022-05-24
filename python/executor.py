@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 from benchmark.data.config import Configuration, ApplicationParameters, SparkConfig, G5kClusterConfig, BenchmarkConfig
 from benchmark.sweeper.sweep import Sweeper
 from benchmark.application.config_transformer import ToCliConfigTransformer, ToCsvConfigTransformer
@@ -7,6 +6,7 @@ from benchmark.deploy.sparklib import ClusterReserver, NoopClusterReserver, Spar
     G5kClusterReserver, \
     G5kSparkSubmit
 from benchmark.application.csv_utils import CsvReader, CsvWriter
+from benchmark.data.utils import JsonUtil
 
 """
 INPUT:
@@ -52,11 +52,11 @@ class BenchmarkExecutor:
         self._stop_cluster()
 
     def _initialize_configs(self, args):
-        # load benchmark config
-        config_path = args.benchmark_config
-        config_text = Path(config_path).read_text()
-        config = Configuration.Schema().loads(config_text)
+        # load application parameters
+        self.application_parameters = JsonUtil.deserialize(args.parameters, ApplicationParameters)
 
+        # load benchmark config
+        config = JsonUtil.deserialize(args.benchmark_config, Configuration)
         self.spark_config: SparkConfig = config.spark_config
 
         self.benchmark_config: BenchmarkConfig = config.benchmark_config
@@ -67,11 +67,6 @@ class BenchmarkExecutor:
         if self.metrics_csv_param_name is not None and self.path_metrics_csv is None:
             raise Exception(
                 "Set \"application_metrics_csv_path\" in the BenchmarkConfig, because \"application_metrics_csv_param_name\" is set.")
-
-        # load application parameters
-        parameters_path = args.parameters
-        parameters_text = Path(parameters_path).read_text()
-        self.application_parameters = ApplicationParameters.Schema().loads(parameters_text)
 
     def _setup_cluster(self):
         print("Reserving the computation cluster.")
@@ -174,7 +169,7 @@ class BenchmarkExecutor:
             print(f"Configurations skipped due to an error:")
             for config in self.sweeper.skipped:
                 print(config)
-                
+
             print("Exporting all benchmark results to a file.")
 
             # 8. Export all results to a file (CSV?)

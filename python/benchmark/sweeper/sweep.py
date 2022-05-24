@@ -1,16 +1,14 @@
+# https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py
 from execo_engine import sweep, HashableDict
-from benchmark.data.config import ApplicationParameter, ApplicationParameters, ApplicationParameterConstraint
+from benchmark.data.config import ApplicationParameter, ApplicationParameters
 from benchmark.data.metric import Metric
-from benchmark.data.constraint_utils import ConstraintUtil
+from benchmark.data.utils import ConstraintUtil, JsonUtil
 from typing import List
 from pathlib import Path
 from dataclasses import dataclass
+from abc import ABC
 import shutil, os, random
 
-
-# https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py
-# with tree + heuristic mechanism
-# and some monte carlo tree-like properties and features
 
 @dataclass
 class SweeperState:
@@ -85,6 +83,15 @@ class SweeperState:
         self.parameter_index += 1
         return res
 
+    def done(self, config):
+        self.not_scored.remove(config)
+        self.done.append(config)
+        SweeperStatePersistence.persist_state(self)
+
+    def skipped(self, config):
+        self.skipped.append(config)
+        SweeperStatePersistence.persist_state(self)
+
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
         parameters.sort(key=lambda ap: ap.priority)
@@ -95,28 +102,53 @@ class SweeperState:
         return {parameter.name: parameter.values for parameter in parameters}
 
 
+class SweeperStatePersistence(ABC):
+    _WORKDIR_PATH = Path("./sweeper_workdir")
+    _WORKDIR_PATH_STR = str(_WORKDIR_PATH)
+
+    _STATE_FILE = _WORKDIR_PATH / "sweeper_state.json"
+    _STATE_FILE_STR = str(_STATE_FILE)
+
+    @staticmethod
+    def remove_workdir():
+        if os.path.isdir(SweeperStatePersistence._WORKDIR_PATH_STR):
+            shutil.rmtree(SweeperStatePersistence._WORKDIR_PATH_STR)
+
+    @staticmethod
+    def create_workdir():
+        if not os.path.exists(SweeperStatePersistence._WORKDIR_PATH_STR):
+            os.makedirs(SweeperStatePersistence._WORKDIR_PATH_STR)
+
+    @staticmethod
+    def load_state() -> SweeperState:
+        return JsonUtil.deserialize(SweeperStatePersistence._STATE_FILE_STR, SweeperState)
+
+    @staticmethod
+    def persist_state(state: SweeperState):
+        SweeperStatePersistence.create_workdir()
+        JsonUtil.serialize(SweeperStatePersistence._STATE_FILE_STR, state, SweeperState)
+
+    @staticmethod
+    def persisted_sweeper_state_exists() -> bool:
+        return os.path.exists(SweeperStatePersistence._STATE_FILE_STR)
+
+
 class Sweeper:
 
     def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
                  remove_workdir: bool = False):
-        # setup workdir
-        workdir_path = str(Path("./sweeper_workdir"))
-        '''
-        Parameter configurations are persisted in the workdir. Remove the workdir if you want to restart the 
-        combinations again. See https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py#L197
-        '''
-        if remove_workdir and os.path.isdir(workdir_path):
-            shutil.rmtree(workdir_path)
-
-        self.__state = SweeperState(application_parameters, train, lower)
+        if remove_workdir:
+            SweeperStatePersistence.remove_workdir()
+        elif SweeperStatePersistence.persisted_sweeper_state_exists():
+            self.__state = SweeperStatePersistence.load_sweeper_state()
+        else:
+            self.__state = SweeperState(application_parameters, train, lower)
 
     def done(self, config):
-        state = self.__state
-        state.not_scored.remove(config)
-        state.done.append(config)
+        self.__state.done(config)
 
-    def skip(self, config):
-        self.__state.skipped.append(config)
+    def skipped(self, config):
+        self.__state.skipped(config)
 
     def _find_best(self, scores: dict, starting_with: dict):
         '''

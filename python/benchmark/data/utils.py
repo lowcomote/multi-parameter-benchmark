@@ -1,10 +1,12 @@
+from abc import ABC
 from typing import final, List
 from execo_engine import HashableDict
+from pathlib import Path
 from benchmark.data.config import ApplicationParameterConstraint
 
 
 @final
-class ConstraintUtil:
+class ConstraintUtil(ABC):
 
     @staticmethod
     def filter_valid_configs(configs: List[HashableDict], constraints: List[ApplicationParameterConstraint]):
@@ -47,3 +49,19 @@ class ConstraintUtil:
                     if config[target_name] not in target_values:
                         return False
         return True
+
+
+@final
+class JsonUtil(ABC):
+
+    @staticmethod
+    def deserialize(path: str, target_type):
+        json = Path(path).read_text()
+        return target_type.Schema().loads(json)
+
+
+    @staticmethod
+    def serialize(path: str, obj, type):
+        json = type.Schema().dump(obj)
+        with open(path, "wt") as file:
+            file.write(json)
