@@ -4,6 +4,7 @@ from benchmark.data.metric import Metric
 from benchmark.data.constraint_utils import ConstraintUtil
 from typing import List
 from pathlib import Path
+from dataclasses import dataclass
 import shutil, os, random
 
 
@@ -11,52 +12,78 @@ import shutil, os, random
 # with tree + heuristic mechanism
 # and some monte carlo tree-like properties and features
 
-class Sweeper:
+@dataclass
+class SweeperState:
+    # use lt comparison when searching for the best configuration
+    lower: bool
 
-    def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
-                 remove_workdir: bool = False):
-        self.__lower = lower
+    # maximal number of train before picking one configuration for a parameter
+    train: int
+    remaining_train: int
 
-        # setup workdir
-        workdir_path = str(Path("./sweeper_workdir"))
-        '''
-        Parameter configurations are persisted in the workdir. Remove the workdir if you want to restart the 
-        combinations again. See https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py#L197
-        '''
-        if remove_workdir and os.path.isdir(workdir_path):
-            shutil.rmtree(workdir_path)
+    """
+    scores :  mapping between a configuration and a list of results 
+                (e.g, {config1 -> [2s, 3s, 1.5s], config3 -> [2s, 3s, 1.5s], ...}). 
+                Instantiated empty
+    """
+    scores: dict
 
-        # setup parameter_dict
-        parameters = application_parameters.parameters
-        self.__parameters_dict = self._to_parameters_dict(parameters)
-        sweeps = sweep(self.__parameters_dict)
-        # setup dict for score
+    # configurations
+    not_scored: List[HashableDict]
+    done: List[HashableDict]
+    skipped: List[HashableDict]
+
+    parameters: List[str]
+    parameter_index: int
+    current_parameter_key: str
+
+    # the concrete value bindings (configuration) for each parameter, that produce the best metric
+    selected: HashableDict
+
+    def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True):
+        # use lt comparison when searching for the best configuration
+        self.lower = lower
+
+        # maximal number of train before picking one configuration for a parameter
+        self.remaining_train = self.train = train
+
         """
         __scores :  mapping between a configuration and a list of results 
                     (e.g, {config1 -> [2s, 3s, 1.5s], config3 -> [2s, 3s, 1.5s], ...}). 
                     Instantiated empty
-        __not_scored : a list of configuration that have not been scored yet
         """
-        self.__train = train  # maximal number of train before picking one configuration for a parameter
-        self.__remaining_train = train
-        self.__scores = dict()  # keeping a record of current calculated scores
+        self.scores = dict()
+
+        # setup parameter_dict
+        parameters = application_parameters.parameters
+        self.parameters_dict = self._to_parameters_dict(parameters)
+        filtered_after_constraints = sweep(self.parameters_dict)
 
         # apply constraints
-        filtered_after_constraints = sweeps
         constraints = application_parameters.constraints
         if constraints is not None:
-            filtered_after_constraints = ConstraintUtil.filter_valid_configs(sweeps, constraints)
+            filtered_after_constraints = ConstraintUtil.filter_valid_configs(filtered_after_constraints, constraints)
 
-        self.__not_scored = filtered_after_constraints
-        self.__done = list()
-        self.__skipped = list()
+        # a list of configuration that have not been scored yet
+        self.not_scored = filtered_after_constraints
+        self.done = list()
+        self.skipped = list()
 
-        self.__parameters = self._to_list_of_key(parameters)
-        self.__parameter_index = 0
-        self.__current_parameter_key = self._get_next_key()
+        # setup parameter names
+        self.parameters = self._to_list_of_key(parameters)
+        self.parameter_index = 0
+        self.current_parameter_key = self.get_next_key()
 
         # the concrete value bindings (configuration) for each parameter, that produce the best metric
-        self.__selected = HashableDict()
+        self.selected = HashableDict()
+
+    def get_next_key(self):
+        '''
+        works as an iterator on all ApplicationParameters keys
+        '''
+        res = self.parameters[self.parameter_index]
+        self.parameter_index += 1
+        return res
 
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
@@ -67,21 +94,29 @@ class Sweeper:
     def _to_parameters_dict(parameters: List[ApplicationParameter]):
         return {parameter.name: parameter.values for parameter in parameters}
 
+
+class Sweeper:
+
+    def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
+                 remove_workdir: bool = False):
+        # setup workdir
+        workdir_path = str(Path("./sweeper_workdir"))
+        '''
+        Parameter configurations are persisted in the workdir. Remove the workdir if you want to restart the 
+        combinations again. See https://github.com/lovasoa/execo/blob/master/src/execo_engine/sweep.py#L197
+        '''
+        if remove_workdir and os.path.isdir(workdir_path):
+            shutil.rmtree(workdir_path)
+
+        self.__state = SweeperState(application_parameters, train, lower)
+
     def done(self, config):
-        self.__not_scored.remove(config)
-        self.__done.append(config)
+        state = self.__state
+        state.not_scored.remove(config)
+        state.done.append(config)
 
     def skip(self, config):
-        self.__skipped.append(config)
-
-    @staticmethod
-    def _start_with(sequence: dict, start: dict):
-        for key in start:
-            if key not in sequence:
-                return False
-            if sequence[key] != start[key]:
-                return False
-        return True
+        self.__state.skipped.append(config)
 
     def _find_best(self, scores: dict, starting_with: dict):
         '''
@@ -93,11 +128,11 @@ class Sweeper:
         best_score = None
         for config in scores:
             score = self.get_score(config)
-            if self._start_with(config, starting_with):
+            if self._contains_subdictionary(config, starting_with):
                 if best_config is None:
                     best_config = config
                     best_score = score
-                elif self.__lower:
+                elif self.__state.lower:
                     if score < best_score:
                         best_config = config
                         best_score = score
@@ -107,53 +142,39 @@ class Sweeper:
                         best_score = score
         return best_config
 
-    @staticmethod
-    def _all_start_with(self, sequences: List[dict], start: dict):
-        '''
-        return the sequences which starts with start
-        '''
-        return list(filter(lambda seq: self._start_with(seq, start), sequences))
-
-    def _get_next_key(self):
-        '''
-        works as an iterator on all ApplicationParameters keys
-        '''
-        res = self.__parameters[self.__parameter_index]
-        self.__parameter_index += 1
-        return res
-
     def get_next(self):
-        if len(self.__not_scored) == 0:
-            best = self._find_best(self.__scores,
-                                   self.__selected)
-            self.__selected = best
+        state = self.__state
+        if len(state.not_scored) == 0:
+            state.selected = self._find_best(state.scores, state.selected)
             return None
-        elif self.__remaining_train == 0:
-            best = self._find_best(self.__scores,
-                                   self.__selected)  # Find best sequence of argument, starting with already selected ones
-            self.__selected[self.__current_parameter_key] = best[
-                self.__current_parameter_key]  # Add the new config value to the selected ones
-            self.__not_scored = self._all_start_with(self, self.__not_scored, self.__selected)
-            if len(self.__not_scored) != 0:
-                self.__current_parameter_key = self._get_next_key()  # Increase the index of the focused param
-                self.__remaining_train = self.__train  # Restart the maximal number of train
+        elif state.remaining_train == 0:
+            # Find best sequence of argument, starting with already selected ones
+            best = self._find_best(state.scores, state.selected)
+            # Add the new config value to the selected ones
+            state.selected[state.current_parameter_key] = best[state.current_parameter_key]
+            state.not_scored = Sweeper._all_start_with(state.not_scored, state.selected)
+            if len(state.not_scored) != 0:
+                # Increase the index of the focused param
+                state.current_parameter_key = state.get_next_key()
+                # Restart the maximal number of train
+                state.remaining_train = state.train
                 return self.get_next()
         else:
-            res = random.choice(self.__not_scored)
-            self.__remaining_train = self.__remaining_train - 1
+            res = random.choice(state.not_scored)
+            state.remaining_train -= 1
             return res
 
     def has_next(self):
-        return len(self.__not_scored) != 0
+        return len(self.__state.not_scored) != 0
 
     def score(self, config, score):
-        if config not in self.__scores:
-            self.__scores[config] = list()
-        self.__scores[config].append(score)
+        if config not in self.__state.scores:
+            self.__state.scores[config] = list()
+        self.__state.scores[config].append(score)
 
     def get_score(self, config) -> Metric:
-        if config in self.__scores:
-            metrics = self.__scores[config]
+        if config in self.__state.scores:
+            metrics = self.__state.scores[config]
             length = len(metrics)
 
             if length == 0:
@@ -168,20 +189,32 @@ class Sweeper:
             raise KeyError(f'The config {config} have not been tested yet.')
 
     def get_all_scores_by_config(self):
-        return self.__scores
+        return self.__state.scores
 
     def has_best(self):
-        return self.__selected is not None
+        return self.best() is not None
 
     def best(self):
-        return self.__selected
-
-    def pub_not_scored(self):
-        return self.__not_scored
+        return self.__state.selected
 
     def __str__(self):
-        res = "Parameters fields: " + str(self.__parameters_dict) + "\n"
-        res += "Current scored configurations: " + str(self.__scores) + "\n"
-        res += "Number of not-scored configurations: " + str(len(self.__not_scored)) + "\n"
-        res += "Current best configuration: " + str(self.__selected)
+        state = self.__state
+        res = f"Parameters fields: {state.parameters_dict}\n"
+        res += f"Current scored configurations: {state.scores}\n"
+        res += f"Number of not-scored configurations: {len(state.not_scored)}\n"
+        res += f"Current best configuration: {state.selected}"
         return res
+
+    @staticmethod
+    def _contains_subdictionary(this: dict, subdictionary: dict):
+        for key, value in subdictionary.items():
+            if (key not in this) or (this[key] != value):
+                return False
+        return True
+
+    @staticmethod
+    def _all_start_with(sequences: List[dict], start: dict):
+        '''
+        return the sequences which starts with start
+        '''
+        return [seq for seq in sequences if Sweeper._contains_subdictionary(seq, start)]
