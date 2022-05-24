@@ -62,14 +62,11 @@ class Sweeper:
     @staticmethod
     def _to_list_of_key(parameters: List[ApplicationParameter]):
         parameters.sort(key=lambda ap: ap.priority)
-        return list(map(lambda ap: ap.name, parameters))
+        return [ap.name for ap in parameters]
 
     @staticmethod
     def _to_parameters_dict(parameters: List[ApplicationParameter]):
-        result = dict()
-        for parameter in parameters:
-            result[parameter.name] = parameter.values
-        return result
+        return {parameter.name: parameter.values for parameter in parameters}
 
     def done(self, config):
         self.__not_scored.remove(config)
@@ -81,7 +78,7 @@ class Sweeper:
     @staticmethod
     def _start_with(sequence: dict, start: dict):
         for key in start:
-            if not key in sequence:
+            if key not in sequence:
                 return False
             if sequence[key] != start[key]:
                 return False

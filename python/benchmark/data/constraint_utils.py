@@ -8,13 +8,8 @@ class ConstraintUtil:
 
     @staticmethod
     def filter_valid_configs(configs: List[HashableDict], constraints: List[ApplicationParameterConstraint]):
-        filtered: List[HashableDict] = list()
         merged_constraints = ConstraintUtil._merge_constraints(constraints)
-        for config in configs:
-            config_is_valid = ConstraintUtil._is_config_valid(config, merged_constraints)
-            if config_is_valid:
-                filtered.append(config)
-        return filtered
+        return [config for config in configs if ConstraintUtil._is_config_valid(config, merged_constraints)]
 
     @staticmethod
     def _merge_constraints(constraints: List[ApplicationParameterConstraint]):

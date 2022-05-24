@@ -21,5 +21,5 @@ class ToCliConfigTransformer(ApplicationConfigTransformer):
 
 class ToCsvConfigTransformer(ApplicationConfigTransformer):
     def transform(self):
-        cli_arguments = ["{0}={1}".format(key, value) for key, value in self.config.items()]
+        cli_arguments = [f"{key}={value}" for key, value in self.config.items()]
         return ",".join(cli_arguments)
