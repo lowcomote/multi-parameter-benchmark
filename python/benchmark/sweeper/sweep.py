@@ -1,4 +1,4 @@
-from execo_engine import ParamSweeper, sweep, HashableDict
+from execo_engine import sweep, HashableDict
 from benchmark.data.config import ApplicationParameter, ApplicationParameters, ApplicationParameterConstraint
 from benchmark.data.metric import Metric
 from benchmark.data.constraint_utils import ConstraintUtil
@@ -30,9 +30,6 @@ class Sweeper:
         parameters = application_parameters.parameters
         self.__parameters_dict = self._to_parameters_dict(parameters)
         sweeps = sweep(self.__parameters_dict)
-        self.sweeper = ParamSweeper(
-            persistence_dir=workdir_path, sweeps=sweeps, save_sweeps=True
-        )
         # setup dict for score
         """
         __scores :  mapping between a configuration and a list of results 
@@ -51,6 +48,8 @@ class Sweeper:
             filtered_after_constraints = ConstraintUtil.filter_valid_configs(sweeps, constraints)
 
         self.__not_scored = filtered_after_constraints
+        self.__done = list()
+        self.__skipped = list()
 
         self.__parameters = self._to_list_of_key(parameters)
         self.__parameter_index = 0
@@ -70,10 +69,10 @@ class Sweeper:
 
     def done(self, config):
         self.__not_scored.remove(config)
-        self.sweeper.done(config)
+        self.__done.append(config)
 
     def skip(self, config):
-        self.sweeper.skip(config)
+        self.__skipped.append(config)
 
     @staticmethod
     def _start_with(sequence: dict, start: dict):
