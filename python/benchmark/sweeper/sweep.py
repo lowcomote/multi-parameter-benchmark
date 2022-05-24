@@ -128,7 +128,7 @@ class Sweeper:
         return res
 
     def get_next(self):
-        if self.__not_scored == []:
+        if len(self.__not_scored) == 0:
             best = self._find_best(self.__scores,
                                    self.__selected)
             self.__selected = best
