@@ -1,4 +1,3 @@
-from queue import Empty
 from execo_engine import ParamSweeper, sweep, HashableDict
 from benchmark.data.config import ApplicationParameter, ApplicationParameters, ApplicationParameterConstraint
 from benchmark.data.metric import Metric
@@ -16,7 +15,7 @@ class Sweeper:
 
     def __init__(self, application_parameters: ApplicationParameters, train: int, lower: bool = True,
                  remove_workdir: bool = False):
-        self.__lower = lower 
+        self.__lower = lower
 
         # setup workdir
         workdir_path = str(Path("./sweeper_workdir"))
@@ -147,7 +146,7 @@ class Sweeper:
             res = random.choice(self.__not_scored)
             self.__remaining_train = self.__remaining_train - 1
             return res
-           
+
     def has_next(self):
         return len(self.__not_scored) != 0
 
@@ -183,7 +182,6 @@ class Sweeper:
 
     def pub_not_scored(self):
         return self.__not_scored
-
 
     def __str__(self):
         res = "Parameters fields: " + str(self.__parameters_dict) + "\n"

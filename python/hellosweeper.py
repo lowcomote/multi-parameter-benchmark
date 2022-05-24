@@ -37,7 +37,7 @@ sweeper = Sweeper(parameters, 5, remove_workdir=True)
 print(sweeper)
 
 config = sweeper.get_next()
-while config != None:
+while config is not None:
     for _ in range(test):
         sweeper.score(config, bench(config))
     # print(f"current best {sweeper.best()}")
