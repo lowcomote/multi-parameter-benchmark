@@ -167,7 +167,7 @@ class BenchmarkExecutor:
             print(f"Best config: {best_config}")
             print()
             print(f"Configurations skipped due to an error:")
-            for config in self.sweeper.skipped:
+            for config in self.sweeper.skipped_configs:
                 print(config)
 
             print("Exporting all benchmark results to a file.")

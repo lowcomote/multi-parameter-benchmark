@@ -38,9 +38,11 @@ print(sweeper)
 
 config = sweeper.get_next()
 while config is not None:
+    # simulate measurement
     for _ in range(test):
         sweeper.score(config, bench(config))
-    # print(f"current best {sweeper.best()}")
+
     sweeper.done(config)
     config = sweeper.get_next()
+
 print("THE BEST IS", sweeper.best, sweeper.get_score(sweeper.best))

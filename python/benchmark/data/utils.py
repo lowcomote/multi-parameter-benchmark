@@ -59,9 +59,41 @@ class JsonUtil(ABC):
         json = Path(path).read_text()
         return target_type.Schema().loads(json)
 
-
     @staticmethod
     def serialize(path: str, obj, type):
-        json = type.Schema().dump(obj)
+        json = type.Schema().dumps(obj)
         with open(path, "wt") as file:
             file.write(json)
+
+
+@final
+class DictUtil(ABC):
+
+    @staticmethod
+    def clone(this: dict):
+        return {key: value for key, value in this.items()}
+
+    @staticmethod
+    def clone_list_of_dictionaries(this: List[dict]):
+        return [DictUtil.clone(item) for item in this]
+
+    @staticmethod
+    def clone_into(source: dict, target: dict):
+        for key, value in source.items():
+            target[key] = value
+        return target
+
+    @staticmethod
+    def contains_subdictionary(this: dict, subdictionary: dict):
+        for key, value in subdictionary.items():
+            if (key not in this) or (this[key] != value):
+                return False
+        return True
+
+
+@final
+class ListUtil(ABC):
+
+    @staticmethod
+    def to_list(iterable):
+        return [item for item in iterable]

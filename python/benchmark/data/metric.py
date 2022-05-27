@@ -1,10 +1,7 @@
 # to type hint a method with the type of the enclosing class: https://stackoverflow.com/a/33533514
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
-import json
 
 
 @dataclass
@@ -47,14 +44,18 @@ class Metric(ABC):
         pass
 
     @abstractmethod
+    def __repr__(self):
+        pass
+
+    @abstractmethod
     def get_value(self):
         pass
 
     @staticmethod
     def from_string(array_as_string: str):
-        array = json.loads(array_as_string)
+        array = array_as_string[1:-1].split(",")
         metrics = [LongMetric(element) for element in array]
-        number_of_metrics = len(metrics)
+        number_of_metrics = len(array)
         if number_of_metrics == 3:
             return Tuple3Metric(metrics[0], metrics[1], metrics[2])
         elif number_of_metrics == 2:
@@ -70,7 +71,7 @@ class LongMetric(Metric):
 
     def __init__(self, value: int):
         super().__init__()
-        self._value = value
+        self._value = int(value)
 
     def __gt__(self, other: LongMetric) -> bool:
         '''Return true if self > other'''
@@ -93,12 +94,16 @@ class LongMetric(Metric):
 
     def __iadd__(self, other: LongMetric):
         self._value += other._value
+        return self
 
     def __truediv__(self, num: int) -> LongMetric:
         return LongMetric(self._value // num)
 
     def __str__(self) -> str:
         return f"[{self._value}]"
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_value(self):
         return self._value
@@ -134,12 +139,16 @@ class Tuple2Metric(Metric):
     def __iadd__(self, other: Tuple2Metric):
         self._v1 += other._v1
         self._v2 += other._v2
+        return self
 
     def __truediv__(self, num: int) -> Tuple2Metric:
         return Tuple2Metric(self._v1 / num, self._v2 / num)
 
     def __str__(self) -> str:
         return f"[{self._v1.get_value()},{self._v2.get_value()}]"
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_value(self):
         return self
@@ -177,12 +186,16 @@ class Tuple3Metric(Metric):
         self._v1 += other._v1
         self._v2 += other._v2
         self._v3 += other._v3
+        return self
 
     def __truediv__(self, num: int) -> Tuple3Metric:
         return Tuple3Metric(self._v1 / num, self._v2 / num, self._v3 / num)
 
     def __str__(self) -> str:
         return f"[{self._v1.get_value()},{self._v2.get_value()},{self._v3.get_value()}]"
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_value(self):
         return self

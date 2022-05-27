@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from execo_engine import HashableDict
+from benchmark.data.utils import DictUtil
 
 
 class ApplicationConfigTransformer(ABC):
@@ -13,10 +14,7 @@ class ApplicationConfigTransformer(ABC):
 
 class ToCliConfigTransformer(ApplicationConfigTransformer):
     def transform(self):
-        cloned = dict()
-        for key, value in self.config.items():
-            cloned[key] = value
-        return cloned
+        return DictUtil.clone(self.config)
 
 
 class ToCsvConfigTransformer(ApplicationConfigTransformer):
