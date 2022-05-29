@@ -3,8 +3,7 @@ from benchmark.data.config import Configuration, ApplicationParameters, SparkCon
 from benchmark.sweeper.sweep import Sweeper
 from benchmark.application.config_transformer import ToCliConfigTransformer, ToCsvConfigTransformer
 from benchmark.deploy.sparklib import ClusterReserver, NoopClusterReserver, SparkSubmit, LocalSparkSubmit, \
-    G5kClusterReserver, \
-    G5kSparkSubmit
+    G5kClusterReserver, G5kSparkSubmit
 from benchmark.application.csv_utils import CsvReader, CsvWriter
 from benchmark.data.utils import JsonUtil
 
@@ -22,14 +21,17 @@ ALGORITHM:
 1. Load parameters from a JSON file.
 2. Instantiate Sweeper with these parameters.
 3. Get the next config from sweeper.
-4. Submit the application to the cluster, wait for it until it finishes, collect the output CSVs after finishing (or upload them somewhere from the application).
+4. Submit the application to the cluster, wait for it until it finishes, collect the output CSVs after finishing 
+    (or upload them somewhere from the application).
   4.1. Rerun the experiments N number of times and collect the metrics.
   4.2. Do not save the CSVs of the warmup rounds, only the measurement rounds.
-  4.3. Take the avg/median (with the std) of the measured metrics and save them in a CSV. -> Call these metrisc as "summarized metrics".
+  4.3. Take the avg/median (with the std) of the measured metrics and save them in a CSV. -> 
+    Call these metrics as "summarized metrics".
 5. Save the configuration with the summarized metrics into the Sweeper (or somewhere else).
 6. Get the next configuration from the sweeper...
 7. Do it until Sweeper finishes or we did enough experiment runs.
-8. Return the best configuration, the corresponding metrics values AND the whole metrics results: <config - summarized metrics>
+8. Return the best configuration, the corresponding metrics values AND 
+    the whole metrics results: <config - summarized metrics>
 """
 
 
@@ -65,7 +67,8 @@ class BenchmarkExecutor:
 
         if self.metrics_csv_param_name is not None and self.path_metrics_csv is None:
             raise Exception(
-                "Set \"application_metrics_csv_path\" in the BenchmarkConfig, because \"application_metrics_csv_param_name\" is set.")
+                "Set \"application_metrics_csv_path\" in the BenchmarkConfig, " +
+                "because \"application_metrics_csv_param_name\" is set.")
 
     def _setup_cluster(self):
         print("Reserving the computation cluster.")
@@ -76,7 +79,8 @@ class BenchmarkExecutor:
         self.cluster_reserver.start()
 
     def _setup_spark(self):
-        # TODO should you deploy to G5k, then copy Spark and the application to your HOME folder, because G5k will upload it to the cluster
+        # TODO should you deploy to G5k, then copy Spark and the application to your HOME folder,
+        #  because G5k will upload it to the cluster
         print("Starting Spark on the computation cluster.")
         # roles = cluster_reserver.roles
         # username = cluster_reserver.username
@@ -94,6 +98,7 @@ class BenchmarkExecutor:
     def _stop_cluster(self):
         # Undeploy computation platform
         try:
+            print()
             print("Undeploying computation cluster.")
             self.cluster_reserver.stop()
             print("Computation cluster undeployed.")
@@ -102,6 +107,7 @@ class BenchmarkExecutor:
 
     def _stop_spark(self):
         try:
+            print()
             print("Stopping Spark cluster.")
             self.spark_submit.stop()
             print("Spark cluster stopped.")
@@ -167,7 +173,10 @@ class BenchmarkExecutor:
 
         # Export benchmark results
         if self.sweeper.has_best():
-            # 7. If ParamSweeper does not give next param, then get (1) the best parametrization from it, (2) the corresponding metrics, (3) all parametrizations and all metrics that have been recorded so far
+            # 7. If ParamSweeper does not give next param, then:
+            # 7.1. get the best parametrization from it,
+            # 7.2. get the corresponding metrics,
+            # 7.3. get all parametrizations and all metrics that have been recorded so far
             best_config = self.sweeper.best
             best_score = self.sweeper.get_score(best_config)
             print(f"Best score: {best_score}")

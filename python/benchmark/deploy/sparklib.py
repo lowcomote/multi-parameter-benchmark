@@ -42,7 +42,8 @@ class G5kClusterReserver(ClusterReserver):
             
             ...
 
-            g5kconf = G5kClusterReserver(site="nancy", cluster="gros", worker=1, jobname="Spark_test", time="00:10:00", start="now")
+            g5kconf = G5kClusterReserver(site="nancy", cluster="gros", worker=1, jobname="Spark_test",
+                                        time="00:10:00", start="now")
             try:
                 g5kconf.start()
                 username = g5kconf.username
@@ -207,7 +208,7 @@ class SparkSubmit(ABC):
         with os.popen(cmd) as proc:
             jar_path = proc.read()
         return self.submit_with_log(jar_path.rstrip("\n"), "org.apache.spark.examples.SparkPi", java_args={"": "10"},
-                             path_log=path_log, path_err=path_err)
+                                    path_log=path_log, path_err=path_err)
 
     def test(self):
         """ Run a simple test on the cluster. """
@@ -276,8 +277,8 @@ class SparkSubmit(ABC):
             java_args = {}
         if spark_args is None:
             spark_args = {}
-        return self.submit_with_log(path_jar, classname, spark_args, java_args, path_metrics_csv, SparkSubmit._NO_PATHLOG,
-                             SparkSubmit._NO_PATHERR)
+        return self.submit_with_log(path_jar, classname, spark_args, java_args, path_metrics_csv,
+                                    SparkSubmit._NO_PATHLOG, SparkSubmit._NO_PATHERR)
 
     @abstractmethod
     def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_metrics_csv: str,
@@ -397,13 +398,15 @@ class LocalSparkSubmit(SparkSubmit):
             self._set_java_home()
             shell_out_log = f"> {path_log}" if path_log != SparkSubmit._NO_PATHLOG else ""
             shell_out_err = f"2> {path_err}" if path_log != SparkSubmit._NO_PATHERR else ""
-            cmd = f"{self._spark}bin/spark-submit --master spark://localhost:7077 {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
+            cmd = f"{self._spark}bin/spark-submit --master spark://localhost:7077 {spark_args} " + \
+                  f"--class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
             process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
 
             return_code = process.returncode
             if return_code != 0:
                 raise Exception(
-                    f"Spark application's return code {return_code} is not 0. Check error log, because an exception might have occurred.")
+                    f"Spark application's return code {return_code} is not 0. Check error log, " +
+                    "because an exception might have occurred.")
 
             print(f"Returning metrics CSV local path: {path_metrics_csv}")
             return path_metrics_csv
@@ -504,7 +507,9 @@ class G5kSparkSubmit(SparkSubmit):
         shell_out_err = f"2>> {path_err}" if path_log != SparkSubmit._NO_PATHERR else ""
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             try:
-                cmd = f"{self._shell_set_java_cmd}{self._spark}bin/spark-submit --master spark://{self.__master}:7077 {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
+                cmd = f"{self._shell_set_java_cmd}{self._spark}bin/spark-submit " + \
+                      f"--master spark://{self.__master}:7077 {spark_args} --class {classname} " + \
+                      f"{path_jar} {java_args} {shell_out_log} {shell_out_err}"
                 p.shell(cmd)
                 results = p.results
                 number_of_results = len(results)
