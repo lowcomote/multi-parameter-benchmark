@@ -1,7 +1,7 @@
 {
   "parameters": [
     {
-      "name": "c1",
+      "name": "-c1",
       "priority": 1,
       "values": [
         "p1",
@@ -10,7 +10,7 @@
       ]
     },
     {
-      "name": "c2",
+      "name": "-c2",
       "priority": 2,
       "values": [
         "p4",
@@ -21,7 +21,7 @@
   "constraints": [
     {
       "source": {
-        "name": "c1",
+        "name": "-c1",
         "value": "p1"
       },
       "targets": [
@@ -33,12 +33,12 @@
     },
     {
       "source": {
-        "name": "c2",
+        "name": "-c2",
         "value": "p5"
       },
       "targets": [
         {
-          "name": "c1",
+          "name": "-c1",
           "value": "p2"
         }
       ]
