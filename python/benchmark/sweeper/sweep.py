@@ -107,6 +107,7 @@ class SweeperState:
 
     def skipped(self, config):
         self.skipped_configs.add(config)
+        self.remaining_configs.remove(config)
         SweeperStatePersistence.persist_state(self)
 
     @staticmethod
