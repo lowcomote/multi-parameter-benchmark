@@ -401,17 +401,11 @@ class LocalSparkSubmit(SparkSubmit):
             cmd = f"{self._spark}bin/spark-submit --master spark://localhost:7077 {spark_args} " + \
                   f"--class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
             process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
-
-            return_code = process.returncode
-            if return_code != 0:
-                raise Exception(
-                    f"Spark application's return code {return_code} is not 0. Check error log, " +
-                    "because an exception might have occurred.")
-
             print(f"Returning metrics CSV local path: {path_metrics_csv}")
             return path_metrics_csv
         except Exception as e:
             print(e)
+            print("Check application logs, because an exception might have occurred.")
             return None
         finally:
             if path_log != "":
