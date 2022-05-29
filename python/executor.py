@@ -38,7 +38,6 @@ class BenchmarkExecutor:
     _spark_args = {"deploy-mode": "client"}
 
     def __init__(self, args):
-        self.benchmark_config: BenchmarkConfig
         self._initialize_configs(args)
 
     def execute(self):
@@ -56,13 +55,13 @@ class BenchmarkExecutor:
         self.application_parameters = JsonUtil.deserialize(args.parameters, ApplicationParameters)
 
         # load benchmark config
-        config = JsonUtil.deserialize(args.benchmark_config, Configuration)
+        config = JsonUtil.deserialize(args.benchmarkConfig, Configuration)
         self.spark_config: SparkConfig = config.spark_config
 
         self.benchmark_config: BenchmarkConfig = config.benchmark_config
         self.all_in_one_csv_path = self.benchmark_config.all_in_one_benchmark_results_csv_path
-        self.metrics_csv_param_name = self.benchmark_config.application_metrics_csv_param_name
-        self.path_metrics_csv = self.benchmark_config.application_metrics_csv_path
+        self.metrics_csv_param_name = self.benchmark_config.metrics_csv_cli_param_name
+        self.path_metrics_csv = self.benchmark_config.metrics_csv_cli_param_value
 
         if self.metrics_csv_param_name is not None and self.path_metrics_csv is None:
             raise Exception(
@@ -84,13 +83,13 @@ class BenchmarkExecutor:
         # spark_submit: SparkSubmit = G5kSparkSubmit(username=username, roles=roles)
         self.spark_submit: SparkSubmit = LocalSparkSubmit()
         self.spark_submit.set_spark_path(self.spark_config.spark_home)
+        self.spark_submit.set_java_path(self.spark_config.java_home)
         self.spark_submit.start()
 
     def _setup_sweeper(self):
-        # Is train = rerun the application N times with the same config? If not, then we shall repeat the spark_submit N times and take the avg of the results?
         print("Starting the parametrization provider.")
         self.sweeper: Sweeper = Sweeper(application_parameters=self.application_parameters, remove_workdir=True,
-                                        train=10)
+                                        train=self.benchmark_config.train)
 
     def _stop_cluster(self):
         # Undeploy computation platform
@@ -119,6 +118,7 @@ class BenchmarkExecutor:
             # 1. Serialize the arguments received from the param sweeper
             cli_arguments = ToCliConfigTransformer(application_configuration).transform()
             log_arguments = ToCsvConfigTransformer(application_configuration).transform()
+            print()
             print(f"Deploying spark application with parameters: {log_arguments}")
 
             # Setup parameters
@@ -127,14 +127,16 @@ class BenchmarkExecutor:
 
             # 2. Warmup rounds: submit the application to the cluster, but discard the results
             for iteration in range(self.benchmark_config.warmup_rounds):
-                print(f"{iteration}. warmup round of {log_arguments}")
-                self._submit_application_to_cluster(application_configuration, cli_arguments, log_arguments)
+                print()
+                print(f"{iteration + 1}. warmup round of {log_arguments}")
+                self._submit_application_to_cluster(cli_arguments)
 
             # 2. Benchmark rounds: submit the application to the cluster, but save the results
             finished_with_error = False
             for iteration in range(self.benchmark_config.measurement_rounds):
-                print(f"{iteration}. benchmark round of {log_arguments}")
-                csv_path = self._submit_application_to_cluster(application_configuration, cli_arguments, log_arguments)
+                print()
+                print(f"{iteration + 1}. benchmark round of {log_arguments}")
+                csv_path = self._submit_application_to_cluster(cli_arguments)
 
                 if csv_path is None:
                     finished_with_error = True
@@ -155,8 +157,13 @@ class BenchmarkExecutor:
 
             if not finished_with_error:
                 self.sweeper.done(application_configuration)
+            else:
+                print(f"Parametrization ({log_arguments}) finished with error.")
+                self.sweeper.skipped(application_configuration)
 
+        print()
         print("Benchmark finished for all parameters. Parametrization provider does not return any new configuration.")
+        print()
 
         # Export benchmark results
         if self.sweeper.has_best():
@@ -166,10 +173,14 @@ class BenchmarkExecutor:
             print(f"Best score: {best_score}")
             print(f"Best config: {best_config}")
             print()
+
             print(f"Configurations skipped due to an error:")
             for config in self.sweeper.skipped_configs:
                 print(config)
+            else:
+                print("-")
 
+            print()
             print("Exporting all benchmark results to a file.")
 
             # 8. Export all results to a file (CSV?)
@@ -182,22 +193,17 @@ class BenchmarkExecutor:
         else:
             print("No best configuration was found, check the logs.")
 
-    def _submit_application_to_cluster(self, application_configuration, cli_arguments: dict, log_arguments: dict):
-        csv_path = self.spark_submit.submit_with_log(path_jar=self.spark_config.application_jar_path,
-                                                     classname=self.spark_config.application_classname,
-                                                     spark_args=BenchmarkExecutor._spark_args, java_args=cli_arguments,
-                                                     path_metrics_csv=cli_arguments[self.metrics_csv_param_name])
-        if csv_path is None:
-            print(f"Parametrization ({log_arguments}) finished with error.")
-            self.sweeper.skip(application_configuration)
-        return csv_path
+    def _submit_application_to_cluster(self, cli_arguments: dict):
+        return self.spark_submit.submit_with_log(path_jar=self.spark_config.application_jar_path,
+                                                 classname=self.spark_config.application_classname,
+                                                 spark_args=BenchmarkExecutor._spark_args, java_args=cli_arguments,
+                                                 path_metrics_csv=cli_arguments[self.metrics_csv_param_name])
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--parameters", help="Application parameters JSON path", required=True)
-    parser.add_argument("-a", "--application", help="Application JAR path", required=True)
-    parser.add_argument("-c", "--benchmark_config", help="Benchmark config JSON path", required=True)
+    parser.add_argument("-c", "--benchmarkConfig", help="Benchmark config JSON path", required=True)
     return parser.parse_args()
 
 

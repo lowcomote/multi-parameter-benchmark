@@ -64,7 +64,7 @@ class CsvWriter:
             csv_writer = csv.writer(file, quoting=csv.QUOTE_NONNUMERIC)  # write quotes around nonnumeric values
             csv_writer.writerow(CSV_HEADERS)
 
-            for config, score in self.scores_by_config:
+            for config, score in self.scores_by_config.items():
                 config_str = ToCsvConfigTransformer(config).transform()
                 score_str = str(score)
                 csv_row = [config_str, self.metric_name, score_str]

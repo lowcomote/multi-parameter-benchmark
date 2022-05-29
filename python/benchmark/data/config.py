@@ -6,11 +6,12 @@ from enum import Enum
 
 @dataclass
 class BenchmarkConfig:
+    train: int
     warmup_rounds: int
     measurement_rounds: int
     all_in_one_benchmark_results_csv_path: str
-    application_metrics_csv_param_name: Optional[str]
-    application_metrics_csv_path: Optional[str]
+    metrics_csv_cli_param_name: Optional[str]
+    metrics_csv_cli_param_value: Optional[str]
 
 
 @dataclass

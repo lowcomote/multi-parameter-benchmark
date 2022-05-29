@@ -1,4 +1,4 @@
-import subprocess, os
+import subprocess, os, multiprocessing, time
 from enoslib import *
 from enoslib.infra.enos_g5k.g5k_api_utils import get_api_username
 from abc import ABC, abstractmethod
@@ -16,6 +16,9 @@ class ClusterReserver(ABC):
 
 
 class NoopClusterReserver(ClusterReserver):
+
+    def __init__(self):
+        super().__init__()
 
     def start(self):
         pass
@@ -65,6 +68,7 @@ class G5kClusterReserver(ClusterReserver):
 
     def __init__(self, site: str, cluster: str, worker: int, jobname: str = _DEFAULT_JOB_NAME,
                  time: str = _DEFAULT_TIME, start: str = _DEFAULT_START):
+        super().__init__()
         self.__site = site
         self.__cluster = cluster
         self.__worker = worker
@@ -138,10 +142,10 @@ class SparkSubmit(ABC):
     _NO_PATHERR = "-1"
 
     # Java and Spark versions related fields
-    __isSetJava: bool = False
-    __isSetSpark: bool = False
-    __java = None  # Path to JAVA_HOME
-    __spark = None  # Path to SPARK_HOME
+    _isSetJava: bool = False
+    _isSetSpark: bool = False
+    _java = None  # Path to JAVA_HOME
+    _spark = None  # Path to SPARK_HOME
 
     def __enter__(self):
         self.start()
@@ -154,25 +158,31 @@ class SparkSubmit(ABC):
         """
         Set SPARK_HOME. Mandatory to submit Spark application.
         """
-        self.__spark = path
-        if self.__spark[-1] != "/":
-            self.__spark += "/"
-        self.__isSetSpark = True
+        if path is None:
+            return
+
+        self._spark = path
+        if self._spark[-1] != "/":
+            self._spark += "/"
+        self._isSetSpark = True
 
     def set_java_path(self, path: str):
         """
         Set JAVA_HOME. By default, submission mechanism will use the installed java version.
         """
-        self.__java = path
-        if self.__java[-1] != "/":
-            self.__java += "/"
-        self.__isSetJava = True
+        if path is None:
+            return
+
+        self._java = path
+        if self._java[-1] != "/":
+            self._java += "/"
+        self._isSetJava = True
 
     def start(self):
         """
         Deploy the Spark cluster so that the application can be submitted.
         """
-        if not self.__isSetSpark:
+        if not self._isSetSpark:
             raise Exception("The path to SPARK_HOME must be defined. Please, use set_spark_path(path).")
         self._on_start()
 
@@ -180,7 +190,7 @@ class SparkSubmit(ABC):
         """
         Stop current Spark cluster.
         """
-        if not self.__isSetSpark:
+        if not self._isSetSpark:
             raise Exception("The path to SPARK_HOME must be defined. Please, use set_spark_path(path).")
         self._on_stop()
 
@@ -193,15 +203,15 @@ class SparkSubmit(ABC):
             path_err:
                 Path to the file the error output will be printed in.
         """
-        cmd = f"ls {self.__spark}examples/jars/*examples*jar"
+        cmd = f"ls {self._spark}examples/jars/*examples*jar"
         with os.popen(cmd) as proc:
             jar_path = proc.read()
-        self.submit_with_log(jar_path.rstrip("\n"), "org.apache.spark.examples.SparkPi", java_args={"": "10"},
+        return self.submit_with_log(jar_path.rstrip("\n"), "org.apache.spark.examples.SparkPi", java_args={"": "10"},
                              path_log=path_log, path_err=path_err)
 
     def test(self):
         """ Run a simple test on the cluster. """
-        self.test_with_log(SparkSubmit._NO_PATHLOG, SparkSubmit._NO_PATHERR)
+        return self.test_with_log(SparkSubmit._NO_PATHLOG, SparkSubmit._NO_PATHERR)
 
     def submit_with_log(self, path_jar: str, classname: str, spark_args=None, java_args=None,
                         path_metrics_csv: str = None, path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -241,11 +251,11 @@ class SparkSubmit(ABC):
         # Get Java arguments (of the Jar) arguments as a single string value
         str_java_args = ""
         for arg, value in java_args.items():
-            str_java_args += f"{arg} {value} "
+            str_java_args += f"-{arg} {value} "
 
         # Submit the application to the cluster
         print("Submitting Spark application to the cluster.")
-        self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_metrics_csv, path_log, path_err)
+        return self._on_submit(path_jar, classname, str_spark_args, str_java_args, path_metrics_csv, path_log, path_err)
 
     def submit(self, path_jar: str, classname: str, path_metrics_csv: str, spark_args=None, java_args=None):
         """ Submit a Spark job on the cluster.
@@ -266,7 +276,7 @@ class SparkSubmit(ABC):
             java_args = {}
         if spark_args is None:
             spark_args = {}
-        self.submit_with_log(path_jar, classname, spark_args, java_args, path_metrics_csv, SparkSubmit._NO_PATHLOG,
+        return self.submit_with_log(path_jar, classname, spark_args, java_args, path_metrics_csv, SparkSubmit._NO_PATHLOG,
                              SparkSubmit._NO_PATHERR)
 
     @abstractmethod
@@ -316,17 +326,17 @@ class LocalSparkSubmit(SparkSubmit):
 
     __java_home_backup = None  # Original value of the JAVA_HOME environmental variable
 
-    def __init__(self, number_of_cores=1):
-        self.__number_of_cores = number_of_cores
+    def __init__(self):
+        super().__init__()
 
     def _set_java_home(self):
-        if not self.__isSetJava:
+        if not self._isSetJava:
             return
         self.__java_home_backup = os.getenv("JAVA_HOME")
-        os.environ["JAVA_HOME"] = self.__java
+        os.environ["JAVA_HOME"] = self._java
 
     def _restore_java_home(self):
-        if not self.__isSetJava:
+        if not self._isSetJava:
             return
         if self.__java_home_backup is not None:
             # restore JAVA_HOME to its original value
@@ -342,23 +352,25 @@ class LocalSparkSubmit(SparkSubmit):
         """
         try:
             self._set_java_home()
-            cmd = f"{self.__spark}sbin/start-master.sh -p 7077"
-            subprocess.run(cmd, shell=True, capture_output=True, check=True)
-            cmd = f"{self.__spark}sbin/start-worker.sh spark://localhost:7077"
-            subprocess.run(cmd, shell=True, capture_output=True, check=True)
+
+            print("Starting Spark master node")
+            cmd = f"{self._spark}bin/spark-class org.apache.spark.deploy.master.Master --host localhost --port 7077"
+            self._master_spark_process = multiprocessing.Process(target=self._run_command, args=(cmd,))
+            self._master_spark_process.start()
+
+            print("Starting Spark worker node")
+            cmd = f"{self._spark}bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077"
+            self._worker_spark_process = multiprocessing.Process(target=self._run_command, args=(cmd,))
+            self._worker_spark_process.start()
         finally:
             self._restore_java_home()
 
+    def _run_command(self, command):
+        process = subprocess.run(command, shell=True, capture_output=True, check=True)
+
     def _on_stop(self):
-        """
-        Stop current Spark cluster.
-        """
-        try:
-            self._set_java_home()
-            cmd = f"{self.__spark}sbin/stop-all.sh"
-            subprocess.run(cmd, shell=True, capture_output=True, check=True)
-        finally:
-            self._restore_java_home()
+        self._master_spark_process.terminate()
+        self._worker_spark_process.terminate()
 
     def _on_submit(self, path_jar: str, classname: str, spark_args: str, java_args: str, path_metrics_csv: str,
                    path_log: str = "/tmp/out.log", path_err: str = "/tmp/out.err"):
@@ -383,9 +395,9 @@ class LocalSparkSubmit(SparkSubmit):
        """
         try:
             self._set_java_home()
-            shell_out_log = f">> {path_log}" if path_log != SparkSubmit._NO_PATHLOG else ""
-            shell_out_err = f"2>> {path_err}" if path_log != SparkSubmit._NO_PATHERR else ""
-            cmd = f"{self.__spark}bin/spark-submit --master spark://local[{self.__number_of_cores}] {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
+            shell_out_log = f"> {path_log}" if path_log != SparkSubmit._NO_PATHLOG else ""
+            shell_out_err = f"2> {path_err}" if path_log != SparkSubmit._NO_PATHERR else ""
+            cmd = f"{self._spark}bin/spark-submit --master spark://localhost:7077 {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
             process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
 
             return_code = process.returncode
@@ -399,10 +411,12 @@ class LocalSparkSubmit(SparkSubmit):
             print(e)
             return None
         finally:
-            cmd = f"mv {path_log} ~"
-            subprocess.run(cmd)
-            cmd = f"mv {path_err} ~"
-            subprocess.run(cmd)
+            if path_log != "":
+                cmd = f"mv {path_log} ~"
+                process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
+            if path_err != "":
+                cmd = f"mv {path_err} ~"
+                process = subprocess.run(cmd, shell=True, capture_output=True, check=True)
             self._restore_java_home()
 
 
@@ -439,6 +453,7 @@ class G5kSparkSubmit(SparkSubmit):
     __master = None  # Address of master on the current cluster
 
     def __init__(self, username, roles):
+        super().__init__()
         self.__username = username
         self.__roles = roles
         self.__master = self.__roles[G5kClusterReserver.ROLE_MASTER][0].address  # get master address
@@ -448,17 +463,17 @@ class G5kSparkSubmit(SparkSubmit):
         Deploy the Spark cluster.
         """
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
-            cmd = f"{self._shell_set_java_cmd}{self.__spark}sbin/start-master.sh -p 7077"
+            cmd = f"{self._shell_set_java_cmd}{self._spark}sbin/start-master.sh -p 7077"
             p.shell(cmd)
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
-            cmd = f"{self._shell_set_java_cmd}{self.__spark}sbin/start-worker.sh spark://{self.__master}:7077"
+            cmd = f"{self._shell_set_java_cmd}{self._spark}sbin/start-worker.sh spark://{self.__master}:7077"
             p.shell(cmd)
 
     def _on_stop(self):
         """
         Stop current Spark cluster.
         """
-        cmd = f"{self._shell_set_java_cmd}{self.__spark}sbin/stop-all.sh"
+        cmd = f"{self._shell_set_java_cmd}{self._spark}sbin/stop-all.sh"
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             p.shell(cmd)
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_WORKER, roles=self.__roles, run_as=self.__username) as p:
@@ -489,7 +504,7 @@ class G5kSparkSubmit(SparkSubmit):
         shell_out_err = f"2>> {path_err}" if path_log != SparkSubmit._NO_PATHERR else ""
         with play_on(pattern_hosts=G5kClusterReserver.ROLE_MASTER, roles=self.__roles, run_as=self.__username) as p:
             try:
-                cmd = f"{self._shell_set_java_cmd}{self.__spark}bin/spark-submit --master spark://{self.__master}:7077 {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
+                cmd = f"{self._shell_set_java_cmd}{self._spark}bin/spark-submit --master spark://{self.__master}:7077 {spark_args} --class {classname} {path_jar} {java_args} {shell_out_log} {shell_out_err}"
                 p.shell(cmd)
                 results = p.results
                 number_of_results = len(results)
@@ -509,7 +524,7 @@ class G5kSparkSubmit(SparkSubmit):
 
                 # Remove the working directory
                 print("Removing working directory of the Spark application.")
-                os.system(f"rm -rf {self.__spark}work")
+                os.system(f"rm -rf {self._spark}work")
 
                 if path_metrics_csv is None:
                     raise Exception("Metrics CSV path is None.")
@@ -529,4 +544,4 @@ class G5kSparkSubmit(SparkSubmit):
 
     @property
     def _shell_set_java_cmd(self):
-        return f"JAVA_HOME={self.__java} " if self.__isSetJava else ""
+        return f"JAVA_HOME={self._java} " if self._isSetJava else ""

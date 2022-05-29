@@ -1,9 +1,11 @@
 {
   "benchmark_config": {
+    "train": 36,
     "warmup_rounds": 1,
     "measurement_rounds": 1,
-    "application_metrics_csv_param_name": "metricsCsv",
-    "application_metrics_csv_param_value": "~/application_metrics.csv"
+    "metrics_csv_cli_param_name": "metricsCsv",
+    "metrics_csv_cli_param_value": "/home/benjo/application_metrics.csv",
+    "all_in_one_benchmark_results_csv_path": "/home/benjo/all_in_one.csv"
   },
   "spark_config": {
     "spark_home": "/home/benjo/spark",

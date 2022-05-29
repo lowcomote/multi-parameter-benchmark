@@ -16,17 +16,17 @@
       "name": "partition",
       "priority": 2,
       "values": [
-        1,
-        2,
-        3
+        "1",
+        "2",
+        "3"
       ]
     },
     {
       "name": "replicate",
       "priority": 3,
       "values": [
-        1,
-        2
+        "1",
+        "2"
       ]
     },
     {
