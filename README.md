@@ -15,5 +15,6 @@ As an example application you may use CountWord in this repository.
 
 1. Create a fat jar from the application: `CountWord-gradle/gradlew shadowJar`
 2. Copy the fat jar to the Spark cluster: `cp CountWord-gradle/app/build/libs/ParametrizableCountWord.jar <spark-cluster-path>`
-3. Adapt the `python/examples/CountWord/config.json` and `python/examples/CountWord/parameters.json` according to your Spark cluster.
-4. Run the benchmark: `python --file python/executor.py -c python/examples/CountWord/config.json -p python/examples/CountWord/parameters.json`
+3. Copy the `bible.txt` to the Spark cluster: `cp bible.txt <spark-cluster-path>`
+4. Adapt the `python/examples/CountWord/config.json` and `python/examples/CountWord/parameters.json` according to your Spark cluster.
+5. Run the benchmark: `python --file python/executor.py -c python/examples/CountWord/config.json -p python/examples/CountWord/parameters.json`
