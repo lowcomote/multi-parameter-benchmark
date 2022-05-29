@@ -97,7 +97,7 @@ class LongMetric(Metric):
         return self
 
     def __truediv__(self, num: int) -> LongMetric:
-        return LongMetric(self._value // num)
+        return LongMetric(round(self._value / num))
 
     def __str__(self) -> str:
         return f"[{self._value}]"
