@@ -210,7 +210,8 @@ class Sweeper:
 
             sum = metrics[0]
             for metric in metrics[1:]:
-                sum += metric
+                # do not replace it with += otherwise metrics[0] will be modified!
+                sum = sum + metric
 
             return sum / length
         else:
