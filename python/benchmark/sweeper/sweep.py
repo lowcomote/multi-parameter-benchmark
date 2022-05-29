@@ -167,7 +167,7 @@ class Sweeper:
     def get_next(self):
         state = self.__state
         if len(state.remaining_configs) == 0:
-            state.selected = self._find_best(state.scores, state.selected)
+            self._finalize_selected()
             return None
         elif state.remaining_train == 0:
             # Find best sequence of argument, starting with already selected ones
@@ -187,7 +187,13 @@ class Sweeper:
             return res
 
     def has_next(self):
-        return len(self.__state.remaining_configs) != 0
+        has_remaining = len(self.__state.remaining_configs) != 0
+        if not has_remaining:
+            self._finalize_selected()
+        return has_remaining
+
+    def _finalize_selected(self):
+        self.__state.selected = self._find_best(self.__state.scores, self.__state.selected)
 
     def score(self, config, score):
         if config not in self.__state.scores:
@@ -208,7 +214,7 @@ class Sweeper:
 
             return sum / length
         else:
-            raise KeyError(f'The config {config} have not been tested yet.')
+            raise KeyError(f'The config {config} has not been tested yet.')
 
     def get_all_scores_by_config(self):
         return self.__state.scores

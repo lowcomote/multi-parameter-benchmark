@@ -36,13 +36,13 @@ sweeper = Sweeper(parameters, 5, remove_workdir=True)
 
 print(sweeper)
 
-config = sweeper.get_next()
-while config is not None:
+while sweeper.has_next():
+    config = sweeper.get_next()
+
     # simulate measurement
     for _ in range(test):
         sweeper.score(config, bench(config))
 
     sweeper.done(config)
-    config = sweeper.get_next()
 
 print("THE BEST IS", sweeper.best, sweeper.get_score(sweeper.best))
