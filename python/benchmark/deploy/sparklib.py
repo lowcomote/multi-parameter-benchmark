@@ -251,7 +251,7 @@ class SparkSubmit(ABC):
         # Get Java arguments (of the Jar) arguments as a single string value
         str_java_args = ""
         for arg, value in java_args.items():
-            str_java_args += f"-{arg} {value} "
+            str_java_args += f"{arg} {value} "
 
         # Submit the application to the cluster
         print("Submitting Spark application to the cluster.")

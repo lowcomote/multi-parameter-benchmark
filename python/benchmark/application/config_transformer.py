@@ -19,5 +19,11 @@ class ToCliConfigTransformer(ApplicationConfigTransformer):
 
 class ToCsvConfigTransformer(ApplicationConfigTransformer):
     def transform(self):
-        cli_arguments = [f"{key}={value}" for key, value in self.config.items()]
+        cli_arguments = list()
+        for key, value in self.config.items():
+            cli_prefix_cut = key
+            while cli_prefix_cut[0] == "-":
+                cli_prefix_cut = cli_prefix_cut[1:]
+            cli_arguments.append(f"{cli_prefix_cut}={value}")
+
         return ",".join(cli_arguments)

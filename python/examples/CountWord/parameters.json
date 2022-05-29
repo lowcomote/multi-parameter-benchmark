@@ -1,7 +1,7 @@
 {
   "parameters": [
     {
-      "name": "storageLevel",
+      "name": "-storageLevel",
       "priority": 1,
       "values": [
         "NONE",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "name": "partition",
+      "name": "-partition",
       "priority": 2,
       "values": [
         "1",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "name": "replicate",
+      "name": "-replicate",
       "priority": 3,
       "values": [
         "1",
@@ -30,14 +30,14 @@
       ]
     },
     {
-      "name": "filename",
+      "name": "-filename",
       "priority": 4,
       "values": [
         "/home/benjo/spark/application/bible.txt"
       ]
     },
     {
-      "name": "metricsCsv",
+      "name": "-metricsCsv",
       "priority": 5,
       "values": [
         "/home/benjo/application_metrics.csv"

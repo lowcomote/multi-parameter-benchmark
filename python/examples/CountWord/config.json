@@ -3,7 +3,7 @@
     "train": 36,
     "warmup_rounds": 1,
     "measurement_rounds": 1,
-    "metrics_csv_cli_param_name": "metricsCsv",
+    "metrics_csv_cli_param_name": "-metricsCsv",
     "metrics_csv_cli_param_value": "/home/benjo/application_metrics.csv",
     "all_in_one_benchmark_results_csv_path": "/home/benjo/all_in_one.csv"
   },
