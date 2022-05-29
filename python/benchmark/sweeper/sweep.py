@@ -81,8 +81,8 @@ class SweeperState:
 
         # a list of configuration that have not been scored yet
         self.remaining_configs = filtered_after_constraints
-        self.done_configs = list()
-        self.skipped_configs = list()
+        self.done_configs = set()
+        self.skipped_configs = set()
 
         # setup parameter names
         self.parameters = self._to_list_of_key(parameters)
@@ -102,11 +102,11 @@ class SweeperState:
 
     def done(self, config):
         self.remaining_configs.remove(config)
-        self.done_configs.append(config)
+        self.done_configs.add(config)
         SweeperStatePersistence.persist_state(self)
 
     def skipped(self, config):
-        self.skipped_configs.append(config)
+        self.skipped_configs.add(config)
         SweeperStatePersistence.persist_state(self)
 
     @staticmethod
@@ -257,9 +257,9 @@ class SweeperStateSchema(Schema):
     # fields.Method() is not embedded in fields.List() due to a bug in marshmallow
     remaining_configs = fields.Method("serialize_remaining_configs", deserialize="deserialize_hashable_dict_list")
     # fields.Method() is not embedded in fields.List() due to a bug in marshmallow
-    done_configs = fields.Method("serialize_done_configs", deserialize="deserialize_hashable_dict_list")
+    done_configs = fields.Method("serialize_done_configs", deserialize="deserialize_hashable_dict_set")
     # fields.Method() is not embedded in fields.List() due to a bug in marshmallow
-    skipped_configs = fields.Method("serialize_skipped_configs", deserialize="deserialize_hashable_dict_list")
+    skipped_configs = fields.Method("serialize_skipped_configs", deserialize="deserialize_hashable_dict_set")
     parameters = fields.List(fields.String())
     parameter_index = fields.Integer()
     current_parameter_key = fields.String()
@@ -302,6 +302,9 @@ class SweeperStateSchema(Schema):
 
     def deserialize_hashable_dict_list(self, value):
         return [self.deserialize_hashable_dict(item) for item in value]
+
+    def deserialize_hashable_dict_set(self, value):
+        return {self.deserialize_hashable_dict(item) for item in value}
 
     @post_load
     def create_state(self, deserialized, **kwargs):
