@@ -1,6 +1,6 @@
 # Multi-Parameter Benchmark Framework
 
-A framework prototype to benchmark Spark applications with multiple parameters.
+A prototype framework to benchmark Spark applications with multiple parameters.
 
 ## Setup
 
