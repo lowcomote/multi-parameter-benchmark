@@ -1,6 +1,6 @@
 # Multi-Parameter Benchmark Framework
 
-A framework to benchmark Spark applications with multiple parameters. The framework was implemented as part of the secondment between ESR13 and ESR14.
+A framework to benchmark Spark applications with multiple parameters
 
 ## Setup
 
